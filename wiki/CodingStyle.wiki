@@ -26,7 +26,7 @@ Each module should reside in his own separate folder, for now, as we are not awa
 || 5. || Compression System: || /src/zipper ||
 || 6. || Security System: || /src/sec ||
 
-The documentation will contain several files, all in the same folder /svn/trunk/docs (http://project-soa.googlecode.com/svn/trunk/docs/)
+The basic documentation will contain several files, all in the same folder /svn/trunk/docs (http://project-soa.googlecode.com/svn/trunk/docs/). The basic docs contain the project specs, article and project phases that result in document deliverables. Apart from those, the docs folder will also have the source code docs, which will be regarded as a separate hierarchy, because it will be generated in an automatic way, from sources, rather than beeing edited like the rest of these documents.
 
 If a module will be reduced to having just 1 source file, it will be taken into /src and the folder removed. For now, we are allowing a certain degree of complexity for the modules, therefore assigning each of them a separate folder.
 
@@ -35,4 +35,4 @@ For documenting source code, best option seems to use *doxygen* system, after co
 
 We will be using the latest doxygen release version 1.5.7.1, from 5 October 2008.
 
-Each module will be documented separately by it's author in the source code, then the documentation will be generated in form of online HTML pages, stored in separate folders into /svn/trunk/docs bearing the same name as the module folder.
+Each module will be documented separately by its author in the source code, then the documentation will be generated in form of online HTML pages, stored in separate folders into /svn/trunk/docs bearing the same name as the module folder.
