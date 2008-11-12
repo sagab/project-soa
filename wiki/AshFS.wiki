@@ -6,7 +6,9 @@ Ash FS is a file system for flash memory devices. It tries to reduce wear levell
 
 = Features =
 
-* compression 
-* garbage collector
-* error detection 
-* security using criptography
+Ash FS offers:
+
+  * compression , implies running a simple algorithm over the data
+  * garbage collector
+  * error detection , using CRC 
+  * security using symmetric key cryptography
