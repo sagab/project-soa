@@ -1,6 +1,6 @@
 #summary Setting some coding style rules
 
-= Introduction 
+= Introduction =
 
 This document will discuss coding styles and offer information about the project relating the processes involved in coding.
 
