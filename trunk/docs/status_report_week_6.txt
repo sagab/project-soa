@@ -1,0 +1,22 @@
+1. Respectare Deadlines, Probleme, Modificari aparute
+
+Totul decurge conform planului, deocamdata: singura posibila problema ar fi o intarziere cu terminarea designului initial AshFS, care trebuie terminat pe 12.11. Wiki-ul a fost "pornit", asadar ne-am respectat aceasta prima parte a deadline-ului.
+
+2. Autoevaluare si implicarea membrilor
+
+Ar fi fost perfect daca aveam toate detaliile deja fixate si sa avem o imagine clara asupra proiectului astfel incat coding-ul sa decurga automat. Deocamdata exista goluri semnificative in cunostintele despre subiect care nu permit asta - in aceasta faza. Trebuie sa citim in continuare mai multa documentatie.
+
+Implicarea membrilor este uniforma per total:
+- prima etapa am fost implicati in aceeasi masura deoarece dupa discutiile initiale, Daniel a redactat prima versiune a abstract-ului, pe care Gabriel a folosit-o in redactarea versiunii curente in LaTeX.
+
+- etapa 2 a fost realizata in mare parte de Gabriel
+
+- etapa 3: planificarea realizata de Daniel si primul draft, diagrama si 2nd draft de Gabriel.
+
+- etapa 4: implicare uniforma iarasi.
+
+In general, incercam o implicare duala, astfel incat sa ramanem amandoi interesati in aceeasi masura de proiect: daca introducem parti inegale, se va ajunge la decizii de design unilaterale, ceea ce poate afecta negativ evolutia.
+
+3. Utilitate solutii si tehnologii, deocumentatii. Necunoscute.
+
+Foarte utile sunt documentatiile sistemelor de fisiere deja existente si articolele de la care plecam. Propriul design va incerca sa fie original, dar exista o limita asupra inventivitatii :D. Necunoscutele in acest moment sunt designul de baza. Feature-urile introduse precum compresia si criptarea sunt cunoscute la un nivel mai avansat decat restul proiectului. Este util codul deja existent pentru sisteme de fisiere similare.
