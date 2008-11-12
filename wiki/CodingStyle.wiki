@@ -18,10 +18,31 @@ There are a few small changes to it which I would like to experiment with:
 
 === Naming Conventions ===
 This will be very important but at this stage we still cannot give a list of filenames and function signatures. As naming conventions, I will have to set some basic guidance as to what the project will look like:
- * module and file names have to be short, lowercase, without separators such as underscore, and be suggestive of its function/use. Good example *blockman.c*. Bad example ~~Block_Man.c~~.
- * function names can adopt either a Java style convention or a C convention, but never a C++ one. Good example: *check_error()*, *checkError()*. Bad example: ~~CheckError()~~
+ * module and file names have to be short, lowercase, without separators such as underscore, and be suggestive of its function/use. Good example {{{blockman.c}}}. Bad example {{{Block_Man.c}}}.
+ * function names can adopt either a Java style convention or a C convention, but never a C++ one. Good example: {{{check_error()}}}, {{{checkError()}}}. Bad example: {{{CheckError()}}}
  * do not insert numbers into function names unless it's part of the algorithm name (such as MD5, CRC16, etc.)
- * variable names should be short, but not too cryptic. Good example: *int tmp2*. Bad example: *int tgy_pvf*. If it cannot be avoided, insert more letters into the name.
+ * variable names should be short, but not too cryptic. Good example: {{{int tmp2}}}. Bad example: {{{int tgy_pvf}}}. If it cannot be avoided, insert more letters into the name.
+
+=== Spacing and constructs ===
+Functions will have paranthesis according to this style:
+{{{
+int function()
+{
+...
+}
+}}}
+
+Special constructs will compress those lines between keywords, like this:
+{{{
+if (condition)
+{
+...
+} else {
+...
+}
+}}}
+
+The rest of the spacing conventions should be according to kernel coding style.
 
 == Folder Hierarchy ==
 Each module should reside in his own separate folder, for now, as we are not aware of how many source files there will be present in each one:
