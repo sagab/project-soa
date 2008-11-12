@@ -20,3 +20,11 @@ AshFS project contains 3 main modules:
   * *ash*  , contains the actual file system implementation 
   * *ftl*  , emulates a block device on the top of flash hardware
   * *tash* , offers a testbench for evaluating file system's performances.
+
+= See also =
+
+  *  [http://en.wikipedia.org/wiki/Flash_memory Flash Memory]
+  *  [http://www.en.wikipedia.org  List of flash file systems]
+  *  [http://www.linux-mtd.infradead.org/ Memory Technology Device]
+  *  [http://www.linuxdevices.com/articles/AT7478621147.html Flash Filesystems for Embedded Linux Systems]
+
