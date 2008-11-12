@@ -9,11 +9,6 @@ We will be using the *C language* as defined in GNU standards http://www.gnu.org
 
 I will be developing under Kubuntu 8.04.1 i386 which is built on that kernel.
 
-== Documenting Sources ==
-For documenting source code, best option seems to use *doxygen* system, after comparing it to the other available options: http://en.wikipedia.org/wiki/Comparison_of_documentation_generators.
-
-We will be using the latest doxygen release version 1.5.7.1, from 5 October 2008. 
-
 == Coding Style ==
 Best choice of the moment is *Linux kernel coding style*, found at http://lxr.linux.no/linux/Documentation/CodingStyle.
 
@@ -31,7 +26,13 @@ Each module should reside in his own separate folder, for now, as we are not awa
 || 5. || Compression System: || /src/zipper ||
 || 6. || Security System: || /src/sec ||
 
-The documentation will contain several files, all in the same folder /src/docs (http://project-soa.googlecode.com/svn/trunk/docs/)
+The documentation will contain several files, all in the same folder /svn/trunk/docs (http://project-soa.googlecode.com/svn/trunk/docs/)
 
 If a module will be reduced to having just 1 source file, it will be taken into /src and the folder removed. For now, we are allowing a certain degree of complexity for the modules, therefore assigning each of them a separate folder.
 
+== Documenting Sources ==
+For documenting source code, best option seems to use *doxygen* system, after comparing it to the other available options: http://en.wikipedia.org/wiki/Comparison_of_documentation_generators.
+
+We will be using the latest doxygen release version 1.5.7.1, from 5 October 2008.
+
+Each module will be documented separately by it's author in the source code, then the documentation will be generated in form of online HTML pages, stored in separate folders into /svn/trunk/docs bearing the same name as the module folder.
