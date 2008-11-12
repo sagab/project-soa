@@ -1,4 +1,5 @@
 #summary Description of the testing environment
+#labels Phase-Requirements
 
 = Introduction =
 
@@ -48,3 +49,11 @@ After knowing the details of the design, I can implement more advanced speed tes
 Lastly, speed will definetely be put to a hard test in compressing hard to process information such as JPEGs, MPGs and other formats which are already compressed to the maximum, and ZIP compression algorithms will have a hard time.
 
 The hardest test would be activating both compression and crypting on a file large enough to stress the system.
+
+= Results Presentations =
+The results of these tests will be a:
+ * YES/NO result as in yes, it didn't crash the kernel - so something works... or no, it crashed the kernel, so it is still wrong (this is used mainly for our internal debug work)
+ * speed measured in miliseconds or nanoseconds (if that's the case) for the length of the test
+ * Excel charts with the evolution of speed when changing different characteristics
+ * comparison between results of these tests using AshFS and running the same tests on a different filesystem, already implemented.
+ * it may or may not be possible to test burning out an USB stick through repeated use. If so, we will pick a rather unexpensive model and run the same tests through our filesystem and another filesystem, observing how many cycles it took to destroy that part of the memory through write cycles.
