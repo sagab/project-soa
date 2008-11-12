@@ -12,3 +12,11 @@ Ash FS offers:
   * garbage collector
   * error detection , using CRC 
   * security using symmetric key cryptography
+
+= Design =
+
+AshFS project contains 3 main modules:
+
+  * *ash*  , contains the actual file system implementation 
+  * *ftl*  , emulates a block device on the top of flash hardware
+  * *tash* , offers a testbench for evaluating file system's performances.
