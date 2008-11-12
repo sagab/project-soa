@@ -1,9 +1,7 @@
 #labels Featured
-#AshFS main page 
-
 = Ash File System =
 
-Add your content here.
+Ash FS is a file system for flash memory devices.
 
 
 = Details =
