@@ -1,0 +1,16 @@
+#summary Setting some coding style rules
+
+= Introduction =
+
+Due to the fact that we will be writing a Linux kernel module that creates a filesystem over USB, I strongly feel the need to use a common coding style, which has been tested and agreed upon by most programmers worldwide.
+
+There is no time to experiment with it, so we will get accustomed to these conventions by working on the project.
+
+
+= Coding Style =
+Best choice of the moment is Linux kernel coding style, found at http://lxr.linux.no/linux/Documentation/CodingStyle.
+
+There are a few small changes to it which I would like to experiment with:
+ # avoid using any macros apart from constants: macros tend to complicate the readability of the code.
+ # this coding style suggests 8 whitespace tabs, while others suggest using whitespace instead of tabbing. From my experience, 8 whitespace make it hell to read code in a virtual machine window. I propose to try for 4 whitespaces tabs. Need to work on this as we code.
+
