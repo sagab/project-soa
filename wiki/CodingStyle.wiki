@@ -1,15 +1,15 @@
 #summary Setting some coding style rules
 
-== Introduction ==
+= Introduction 
 
 This document will discuss coding styles and offer information about the project relating the processes involved in coding.
 
-== Technologies ==
+= Technologies =
 We will be using the *C language* as defined in GNU standards http://www.gnu.org/software/libc/ and compile it with *GCC 4.2.3* under Linux Kernel 2.6.24-19-generic.
 
 I will be developing under Kubuntu 8.04.1 i386 which is built on that kernel.
 
-== Coding Style ==
+= Coding Style =
 Best choice of the moment is *Linux kernel coding style*, found at http://lxr.linux.no/linux/Documentation/CodingStyle.
 
 There are a few small changes to it which I would like to experiment with:
@@ -57,7 +57,7 @@ int big_function() {
 }}}
 
 
-== Folder Hierarchy ==
+= Folder Hierarchy =
 Each module should reside in his own separate folder, for now, as we are not aware of how many source files there will be present in each one:
 
 || 1. || Block Manager: || /src/block ||
@@ -72,7 +72,7 @@ The basic documentation will contain several files, all in the same folder /svn/
 
 If a module will be reduced to having just 1 source file, it will be taken into /src and the folder removed. For now, we are allowing a certain degree of complexity for the modules, therefore assigning each of them a separate folder.
 
-== Documenting Sources ==
+= Documenting Sources =
 For documenting source code, best option seems to use *doxygen* system, after comparing it to the other available options: http://en.wikipedia.org/wiki/Comparison_of_documentation_generators.
 
 We will be using the latest doxygen release version 1.5.7.1, from 5 October 2008.
