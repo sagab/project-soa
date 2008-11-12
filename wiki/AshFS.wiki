@@ -1,12 +1,12 @@
 #labels Featured
 = Ash File System =
 
-Ash FS is a file system for flash memory devices.
+Ash FS is a file system for flash memory devices. It tries to reduce wear levelling of the flash drive by storing such large quantity of data in an uniform way with the help of a block manager.
 
 
-= Details =
+= Features =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+* compression 
+* garbage collector
+* error detection 
+* security using criptography
