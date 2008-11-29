@@ -21,6 +21,17 @@ is important to note, as Subversion will not allow commits of modifications of t
 The project comes with full documentation, including articles and prior documents: /trunk/docs
 Each module of the project can be found in its own /trunk/src directory, and has a Makefile that handles build process.
 
+To build the project, you will need to have the Linux kernel 2.6.27.6 sources and the build-essential package:
+	cd /usr/src  (it's recommended to have the sources in here)
+	wget http://www.kernel.org/pub/linux/kernel/v2.6/linux-2.6.27.6.tar.gz
+	tar xzvf linux-2.6.27.6.tar.gz
+
+	apt-get install build-essential
+
+build-essential package should install the gcc, make and additional libraries, like libc, to allow kernel source compilation.
+If you want to compile the kernel and make a configuration for it with menuconfig, you will also need ncurses dev lib.
+	apt-get install libncurses5-dev
+
 You can access a wiki of the project at http://code.google.com/p/project-soa/wiki/AshFS or by using the links in
 the project's page. We are trying to keep it updated with the new design information.
 
