@@ -1,0 +1,2 @@
+obj-m = ash.o
+ash-y += super.o

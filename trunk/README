@@ -1,0 +1,27 @@
+AshFS - The Flash File System Project
+-------------------------------------
+http://project-soa.googlecode.com
+
+Authors:
+	Daniel Baluta (daniel.baluta@gmail.com)
+	Gabriel Sandu (gabrim.san@gmail.com)
+
+The project is licensed under MIT license (http://www.opensource.org/licenses/mit-license.php).
+
+If you want to download a read only svn repository copy, you must have Subversion installed and run
+	svn checkout http://project-soa.googlecode.com/svn/trunk/ [path to save repo in]
+
+If you are a contributor to the project, you must first checkout a modifiable version of the repository,
+by using
+	svn checkout https://project-soa.googlecode.com/svn/trunk/ --username <your googlecode username> [path]
+
+and you will be asked for your password. The readonly version uses HTTP, while the modifiable uses HTTPS. This
+is important to note, as Subversion will not allow commits of modifications of the read only version of repository.
+
+The project comes with full documentation, including articles and prior documents: /trunk/docs
+Each module of the project can be found in its own /trunk/src directory, and has a Makefile that handles build process.
+
+You can access a wiki of the project at http://code.google.com/p/project-soa/wiki/AshFS or by using the links in
+the project's page. We are trying to keep it updated with the new design information.
+
+For questions, we can be contacted on our emails.
