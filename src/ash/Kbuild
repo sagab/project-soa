@@ -1,2 +1,2 @@
 obj-m = ash.o
-ash-y += super.o
+ash-objs += super.o
