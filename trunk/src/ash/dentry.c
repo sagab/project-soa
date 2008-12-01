@@ -5,7 +5,7 @@
  * 			   Daniel Baluta  <daniel.baluta@gmail.com> 
  * 			   Gabriel Sandu  <gabrim.san@gmail.com>
  *
- * For licensing information, see the file 'LICENCE'
+ * For licensing information, see the file 'LICENSE'
  */
 
 
