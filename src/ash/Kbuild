@@ -1,2 +1,2 @@
 obj-m = ash.o
-ash-objs += super.o
+ash-objs += super.o file.o inode.o
