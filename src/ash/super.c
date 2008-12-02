@@ -13,6 +13,8 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/dcache.h>
+#include <linux/buffer_head.h>
+#include <asm/string.h>
 
 #define ASH_MAGIC	0x123456
 #define ASH_BLOCKSIZE	512
@@ -40,6 +42,8 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode * root;
 	struct dentry * root_dentry;
+	struct buffer_head * bh;
+	char test[10];
 
 	// init the superblock fields
 	sb->s_magic = ASH_MAGIC;
@@ -47,11 +51,16 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = ASH_BSIZE_BITS;
 	sb->s_op = &ash_super_operations;
 
-	// must also provide a root dentry for filesystem
+	printk("phase 1 mounted \n");
+	
+	bh = sb_bread(sb, 0);
+	memcpy(test, bh->b_data, 9);
+	test[9]='\0';
+
+	// create the root inode
 	root = ash_make_inode(sb, S_IFDIR | 0755);
 	if (! root)
 		return -ENOMEM;
-
 	root->i_op = &simple_dir_inode_operations;
 	root->i_fop = &simple_dir_operations;
 
@@ -60,11 +69,12 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 		iput(root);
 		return -ENOMEM;
 	}
-
+	
 	sb->s_root = root_dentry;
 
-	// test file structure
-	ash_create_testfile(sb, root_dentry);
+	printk("all done: '%s'", test);
+
+	brelse(bh);
 
 	return 0;
 }
@@ -73,19 +83,19 @@ static int ash_get_sb(struct file_system_type *fs,
 		int flags, const char *dev_name,
 		void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs, flags, data, ash_fill_super, mnt);
+	return get_sb_bdev(fs, flags, dev_name, data, ash_fill_super, mnt);
 }
 
 
 static void ash_kill_sb(struct super_block *sb)
 {
-	kill_litter_super(sb);
+	kill_block_super(sb);
 }
 
 
 static struct file_system_type ash_fs_type = {
-	.owner		= THIS_MODULE,
-	.name 		= "ash",
+	.owner	= THIS_MODULE,
+	.name 	= "ash",
 	.get_sb 	= ash_get_sb,
 	.kill_sb	= ash_kill_sb,
 };
