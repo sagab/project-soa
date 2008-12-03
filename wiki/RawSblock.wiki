@@ -1,0 +1,33 @@
+#summary How the superblock will look like on the physical media
+#labels Phase-Design
+
+= Design =
+
+From the design of the EXT2 filesystem, the superblock should look like this:
+
+{{{
+ struct ash_raw_superblock {
+	__u16	blocksize;		// size of a physical block of device
+	__u64	totalblocks;		// number of total physical blocks
+	__u8	blockbits;		// how many bits to represent blocksize
+	__u16	mnt_count;		// how many times it was mounted
+	__u16	max_mnt_count;		// max times before checking it
+	__u32	mount_time;		// last mount time
+	__u32	write_time;		// last write time
+	__u32	last_check;		// time of the last check
+	__u32	max_check_time;		// max time between checks
+
+	__u8	state;			// state of the filesystem	
+	__u16	magic;			// contains ASH_MAGIC for valid superblock
+	__u16	vers;			// ASH version
+	
+	char	volname[16];		// volume name
+	
+	__u64	blockmap;		// block number for the block bitmap
+	__u64	firstnode;		// block number of the first ash_raw_node
+ };
+}}}
+
+There is a small detail that we still haven't figured out: whether we should have the superblock always at block 0 or able to be moved around. Consider this situation: if the superblock is always at block 0, and we create 1000 files, the superblock will get written to 1000x times because we need to update block map. And if creating 1000 files is not gonna bother us, then how about modifying the start file 1000 times? If the data is stored in nodes and we try to prevent over-use of any one node, we should create a new node each time the  start portion of the VERY first file is modified and relink the firstnode to that node all the time.
+
+For now, superblock will stay at sector 0. Need to figure out if we need anything else in that structure. Also, this layout is just starting point for implementation.
