@@ -28,7 +28,7 @@ The starting idea is to organize the data around by using nodes in a linked list
 Basically, these nodes should be a linked list, with the superblock's firstnode pointing to the offset of the first ash_raw_node. Given that physical device's sector size is 512 bytes, there is a question whether we will have ash_raw_nodes start only from beginning of a sector, or be able to start anywhere inside a sector. They surely CAN spawn data on more than a sector, so it's a sure thing that generating files will lead to an ash_raw_node ending in the middle of a certain sector, leaving the rest of the space available for interpretation.
 
 There are 2 ways to handle this:
- # leave the sector empty to the end and start next raw node from the beginning of the next sector. This will lead to wasted space, such as writing 100 files of 200 bytes, and having in fact 512 * 100 bytes less space available :P, on rough estimate, which is DOUBLE what the files occupy. This is obviously a bad idea.
+ # leave the sector empty to the end and start next raw node from the beginning of the next sector. This will lead to wasted space, such as writing 100 files of 200 bytes, and having in fact 512 x 100 bytes less space available :P, on rough estimate, which is DOUBLE what the files occupy. This is obviously a bad idea.
  
  # start a new raw node right from the end of another, next time we need space. This calls for linked lists, but also calls for storing offsets to nodes as "pointers" to them, which can be... maybe performance consumming. Not sure at this stage.
 
