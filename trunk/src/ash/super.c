@@ -15,10 +15,7 @@
 #include <linux/dcache.h>
 #include <linux/buffer_head.h>
 #include <asm/string.h>
-
-#define ASH_MAGIC	0x123456
-#define ASH_BLOCKSIZE	512
-#define ASH_BSIZE_BITS 9
+#include "ash.h"
 
 static atomic_t testcount;
 
