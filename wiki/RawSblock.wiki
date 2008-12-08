@@ -3,13 +3,16 @@
 
 = Design =
 
-From the design of the EXT2 filesystem, the superblock should look like this:
+From the design of the EXT2 & FAT filesystems, the superblock should look like this:
 
 {{{
  struct ash_raw_superblock {
-	__u16	blocksize;		// size of a physical block of device
-	__u64	totalblocks;		// number of total physical blocks
+	__u16	sectorsize;		// size of a physical unit of storage in bytes
+	__u16	blocksize;		// size of a logical unit of storage in bytes
+	__u32	maxblocks;		// number of blocks
+	__u64	maxsectors;		// number of sectors
 	__u8	blockbits;		// how many bits to represent blocksize
+	
 	__u16	mnt_count;		// how many times it was mounted
 	__u16	max_mnt_count;		// max times before checking it
 	__u32	mount_time;		// last mount time
@@ -23,11 +26,11 @@ From the design of the EXT2 filesystem, the superblock should look like this:
 	
 	char	volname[16];		// volume name
 	
-	__u64	blockmap;		// block number for the block bitmap
-	__u64	firstnode;		// block number of the first ash_raw_node
+	__u16	BATsize;		// size of Block Allocation Table in blocks
+	__u16	BATsectors;		// size of BAT in sectors
+	__u16	datastart;		// number of first data sector (it's an offset)
+	__u16	rootentry;		// block number of the root directory entry
  };
 }}}
 
-There is a small detail that we still haven't figured out: whether we should have the superblock always at block 0 or able to be moved around. Consider this situation: if the superblock is always at block 0, and we create 1000 files, the superblock will get written to 1000x times because we need to update block map. And if creating 1000 files is not gonna bother us, then how about modifying the start file 1000 times? If the data is stored in nodes and we try to prevent over-use of any one node, we should create a new node each time the  start portion of the VERY first file is modified and relink the firstnode to that node all the time.
-
-For now, superblock will stay at sector 0. Need to figure out if we need anything else in that structure. Also, this layout is just starting point for implementation.
+The superblock resides on sector 0 of the drive and this is all the information that the sector will retain, just in case we need to insert more data into the superblock later on.
