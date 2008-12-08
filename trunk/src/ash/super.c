@@ -45,7 +45,7 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	// init the superblock fields
 	sb->s_magic = ASH_MAGIC;
 	sb->s_blocksize = ASH_BLOCKSIZE;
-	sb->s_blocksize_bits = ASH_BSIZE_BITS;
+	//sb->s_blocksize_bits = ASH_BSIZE_BITS;
 	sb->s_op = &ash_super_operations;
 
 	printk("phase 1 mounted \n");
@@ -69,7 +69,7 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	
 	sb->s_root = root_dentry;
 
-	printk("all done: '%s'", test);
+	printk("all done: '%s' si %d", test, bh->b_size);
 
 	brelse(bh);
 
