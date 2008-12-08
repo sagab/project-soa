@@ -1,0 +1,71 @@
+#summary Filesystem Structure on the storage media
+#labels Phase-Design
+
+= Physical Organization =
+We need a plan to store the data on the disk, so after carefully considering Ext2 and FAT filesystem, we chose an approach similar to FAT with a few tweaks.
+
+Consult the http://en.wikipedia.org/wiki/USB_flash_drive to get an idea about what USB flash stick capabilities are.
+
+The disk structure will look like this:
+|| SuperBlock || Block Allocation Table || block 0 || block 1 || ... || block n-1 ||
+
+ * the SuperBlock fits in the sector 0 of the drive (currently around 62 bytes of data, check the structure of ash_raw_superblock to get an idea)
+
+ * the BAT (Block Allocation Table) is similar to the one used by FAT filesystem (http://www.usq.edu.au/users/leis/courses/ELE3305/fat.pdf). Basically, let's imagine a file is stored in several blocks, for example 5, 4, 1, in that order. The file's directory entry structure will contain a reference to the first block used to store the data, which is 5.
+
+To read the next part of the file, the filesystem manager will look in BAT at the index 5, and find the block number 4. It reads the next one third of the file. Then it will look at index 4 in the BAT and find the number 1. Goes and reads block 1 and finishes reading. The BAT will store FFFF... for the next reference number, indicating it has reached the end.
+
+The BAT is stored in a certain number of sectors and each one of its entries is a reference to an existing block number between 0 and n-1. We can mark one of the references unused if we put a FF... value which corresponds to a block number that cannot possibly exist on the drive due to space limits. Each entry is a 32bit block number, therefore it takes us 4 bytes to store such a reference.
+
+The size of the BAT in sectors and the number of blocks needs to be computed from the size of the physical disk, by using a few formulas.
+
+ * the area comprised of block 0..n-1 is the Data Area.
+
+= Formulas =
+
+We should assume these are variable:
+ * capacity = 1 GB for example (GB = 10^9 in this case)
+ * blocksize = 4096 bytes (must be a multiple of sectorsize)
+
+We should assume this is a constant:
+ * sectorsize = 512 bytes
+
+This is what we need to find out:
+ * BATsectors = size of BAT table, in sectors
+ * BATsize = size of BAT table, in bytes
+ * maxblocks = number of data blocks on the device, from our chart
+ * maxsectors = number of sectors on the device
+
+By division sign / we mean integer division, as by C standard.
+
+*maxsectors = capacity / sectorsize*
+
+1 + BATsectors + maxblocks x (blocksize / sectorsize) = maxsectors, the 1 comes from SuperBlock sector.
+
+*BATsize = maxblocks x 4*, for each block we have a 32bit reference
+
+*BATsectors = maxblocks x 4 / sectorsize + 1*, adding a 1 because BAT must be rounded up to the next sector edge.
+
+Therefore,
+
+1 + maxblocks x 4 / sectorsize + 1 + maxblocks x blocksize / sectorsize = capacity / sectorsize
+
+amplify by sectorsize,
+
+2 x sectorsize + maxblocks x 4 + maxblocks x blocksize = capacity
+
+maxblocks x ( blocksize + 4 ) = capacity - 2 x sectorsize
+
+*maxblocks = ( capacity - 2 x sectorsize) / ( blocksize + 4 )*
+
+= Results on 1 GB stick example =
+
+maxsectors = 10^9/512 = 1953125 (21 bits to represent a sector number)
+
+maxblocks = (10^9 - 1024)  / (4096 + 4) = 243902 blocks. (18 bits to represent a block number)
+
+BATsize = 243902 x 4 = 975608 bytes (approx 1 MB).
+
+BATsectors = 243902 x 4 / 512 + 1 = 1906 sectors.
+
+Therefore, block 0 of data starts at sector 1907. (the superblock will also have to remember this little computation in order to insert this delta whenever we're asking to retrieve or write data on the device).
