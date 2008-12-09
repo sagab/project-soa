@@ -39,18 +39,18 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode * root;
 	struct dentry * root_dentry;
-	struct buffer_head *bh1, *bh2;
+	struct buffer_head *bh;
 	struct ash_raw_superblock *rsb;
 	struct ash_raw_file *rfile;
 
 	// read sector 0 -> the superblock sector
-	bh1 = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
-	if (!bh1) {
+	bh = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
+	if (!bh) {
 		printk(KERN_ERR "__bread from the device failed\n");
 		return -1;
 	}
 	
-	rsb = (struct ash_raw_superblock*)bh1->b_data;
+	rsb = (struct ash_raw_superblock*)bh->b_data;
 	
 	// check if it's an Ash filesystem
 	if (rsb->magic != ASH_MAGIC) {
@@ -84,24 +84,24 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	printk("vers: %d volname: '%s'\n", rsb->vers, rsb->volname);
 
 	// create the root inode
-	brelse(bh1);
+	brelse(bh);
 	
 	// read the root directory entry from the device
-	bh2 = __bread(sb->s_bdev, rsb->datastart, rsb->sectorsize);
-	if (!bh2) {
+	bh = __bread(sb->s_bdev, rsb->datastart, rsb->blocksize);
+	if (!bh) {
 		printk(KERN_ERR "cannot read root directory entry\n");
 		return -1;
 	}
 	
-	rfile = (struct ash_raw_file*)bh2->b_data;
+	// it's fucked up cause I can only read in chunks of 4096 bytes in the kernel, 
+	// so all offsets are wrong... let's just create the damned file...
+	// gona fix offsets later to be able to actually read root dentry 
+	rfile = (struct ash_raw_file*)bh->b_data;
 	
-	printk("mod: %d, time: %d size: %d\n", rfile->mode, rfile->atime, bh2->b_size);
-	
-	return 0;
 	// making the root
-	root = ash_make_inode(sb, (mode_t)rfile->mode);
+	root = ash_make_inode(sb, S_IFDIR|0755);
 	if (! root) {
-		brelse(bh2);
+		brelse(bh);
 		return -ENOMEM;
 	}
 
@@ -110,7 +110,7 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry = d_alloc_root(root);
 	if (! root_dentry) {
-		brelse(bh2);
+		brelse(bh);
 		iput(root);
 		return -ENOMEM;
 	}
@@ -122,12 +122,12 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_root = root_dentry;
 	sb->s_op = &ash_super_operations;
 
-	brelse(bh2);
+	brelse(bh);
 
 	return 0;
 	
 out_test:
-	brelse(bh1);
+	brelse(bh);
 	return -1;
 }
 
