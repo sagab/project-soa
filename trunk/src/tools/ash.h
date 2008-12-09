@@ -7,12 +7,24 @@
  *
  * For licensing information, see the file 'LICENSE'
  */
+#include <stdint.h>  
  
 #define ASH_MAGIC		0x451
+#define ASH_VERSION		10
 #define ASH_SECTORSIZE 		512
 #define ASH_BLOCKSIZE		4096
+#define ASH_BLOCKBITS		12
 
-#include <stdint.h>  
+// states for the filesystem
+#define ASH_FAST_FORMAT		1
+#define ASH_DEEP_FORMAT		2
+
+#define ASH_MAX_MOUNTS		30
+
+#define	MINUTE			60
+#define HOUR			60*MINUTE
+#define DAY			24*HOUR
+#define ASH_MAX_CHECK		30*DAY
 
 /*
  * Represents the ASH superblock on the physical USB drive
@@ -34,7 +46,7 @@ struct ash_raw_superblock {
 
 	uint8_t		state;			// state of the filesystem	
 	uint16_t	magic;			// contains ASH_MAGIC for valid superblock
-	uint16_t	vers;			// ASH version
+	uint16_t	vers;			// divide by 100 to display ASH version
 	
 	char		volname[16];		// volume name
 	
@@ -42,4 +54,21 @@ struct ash_raw_superblock {
 	uint16_t	BATsectors;		// size of BAT in sectors
 	uint16_t	datastart;		// number of first data sector (it's an offset)
 	uint16_t	rootentry;		// block number of the root directory entry
+};
+
+
+/*
+ * Represents a file/directory entry on the physical USB drive
+ *
+ */
+struct ash_raw_file {
+	uint16_t	mode;			// file type and access rights
+	uint32_t	uid;			// owner ID
+	uint32_t	gid;			// group ID
+	uint64_t	size;			// file length in bytes
+	uint32_t	atime;			// last accessed
+	uint32_t	wtime;			// last written
+	uint32_t	ctime;			// created
+	uint32_t	startblock;		// reference to both BAT and actual data block where file's data is stored
+	uint16_t	namelength;		// how long is the filename
 };

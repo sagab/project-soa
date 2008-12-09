@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
+#include <sys/stat.h>
 
 #include "ash.h"
 
@@ -69,40 +71,91 @@ uint64_t getsize(char *device)
  */
 int format(char *device, uint64_t size)
 {
+	// fill in a superblock structure
 	struct ash_raw_superblock s;
+	
+	// set everything to 0, just in case we forget to init fields
+	memset(&s, 0, sizeof(s));
 	
 	s.sectorsize = ASH_SECTORSIZE;
 	s.blocksize = ASH_BLOCKSIZE;
+	s.blockbits = ASH_BLOCKBITS;
 	s.maxsectors = size;
 	
+	// slightly different formula than on the wiki
+	// http://code.google.com/p/project-soa/wiki/PhysicalStructureeinstein
+	uint32_t tmp = (uint32_t)s.blocksize + (uint32_t)4;
+	s.maxblocks = (uint32_t)( size * s.sectorsize - 2 * s.sectorsize ) / tmp;
+	
+	s.BATsize = s.maxblocks * 4;
+	s.BATsectors = s.BATsize / s.sectorsize + 1;
+	s.datastart = s.rootentry = 1 + s.BATsectors;
+	
 	s.mnt_count = 0;
-	s.max_mnt_count = 30;
-	s.mount_time = ;
-	s.write_time = ;
+	s.max_mnt_count = ASH_MAX_MOUNTS;
 	
-	__u16	sectorsize;		// size of a physical unit of storage in bytes
-	__u16	blocksize;		// size of a logical unit of storage in bytes
-	__u32	maxblocks;		// number of blocks
-	__u64	maxsectors;		// number of sectors
-	__u8	blockbits;		// how many bits to represent blocksize
+	time_t now = time(0);
 	
-	__u16	mnt_count;		// how many times it was mounted
-	__u16	max_mnt_count;		// max times before checking it
-	__u32	mount_time;		// last mount time
-	__u32	write_time;		// last write time
-	__u32	last_check;		// time of the last check
-	__u32	max_check_time;		// max time between checks
+	s.mount_time = now;
+	s.write_time = now;
+	s.last_check = now;
+	s.max_check_time = ASH_MAX_CHECK;
+	
+	s.state = ASH_FAST_FORMAT;
+	s.magic = ASH_MAGIC;
+	s.vers = ASH_VERSION;
+	
+	strcpy(s.volname, "usbstick");
+	
+	// filling in the root directory entry
+	struct ash_raw_file rentry;
+	
+	// clear struct
+	memset(&rentry, 0, sizeof(rentry));
+	
+	// sets all permissions for all users and sets sticky bit
+	rentry.mode = S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX;
+	rentry.uid = rentry.gid = 1;
+	rentry.size = 0;
+	rentry.atime = rentry.wtime = rentry.ctime = now;
+	rentry.startblock = s.rootentry;
+	rentry.namelength = 0;		// root dir doesn't have a name
+	
+	// trying to open the device file
+	FILE *fd = fopen(device, "w");
+	if (!fd) {
+		printf("cannot open device for writing\n");
+		return 1;	
+	}
+	
+	// writing the superblock structure
+	int sw = fwrite(&s, sizeof(s), 1, fd);
+	if (sw != 1) {
+		printf("error while writing superblock\n");
+		return 1;
+	}
+	
+	// writing the root directory entry structure
+	sw = fwrite(&rentry, sizeof(rentry), 1, fd);
+	if (sw != 1) {
+		printf("error while writing root directory entry\n");
+		return 1;
+	}
+	
+	// closing device
+	fclose(fd);
 
-	__u8	state;			// state of the filesystem	
-	__u16	magic;			// contains ASH_MAGIC for valid superblock
-	__u16	vers;			// ASH version
-	
-	char	volname[16];		// volume name
-	
-	__u16	BATsize;		// size of Block Allocation Table in blocks
-	__u16	BATsectors;		// size of BAT in sectors
-	__u16	datastart;		// number of first data sector (it's an offset)
-	__u16	rootentry;	
+	// printout verbose info
+	printf("\n");
+	printf("volume name: '%s'\n", s.volname);
+	printf("formatted with Ash vers. %4.2f\n", (float)s.vers/100);
+	printf("sector size: %d bytes\n", s.sectorsize);
+	printf("block size: %d bytes\n", s.blocksize);
+	printf("max sectors: %d\n", s.maxsectors);
+	printf("max blocks: %d\n", s.maxblocks);
+	printf("BATsize: %d bytes\n", s.BATsize);
+	printf("BATsectors: %d\n", s.BATsectors);
+	printf("start of data @ sector: %d\n\n", s.rootentry);
 	
 	return 0;
 }
