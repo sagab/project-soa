@@ -7,15 +7,18 @@
  *
  * For licensing information, see the file 'LICENSE'
  */
+
+#ifndef __ASH_H__
+#define __ASH_H__
+
+#include <linux/types.h>
  
- #include <linux/types.h>
+#define ASH_MAGIC		0x451
  
- #define ASH_MAGIC		0x451
+int ASH_SECTORSIZE 	= 512;		// this should be found out from the device
+int ASH_CAPACITY 	= 0;		// this should be found out from the device
  
- int ASH_SECTORSIZE = 512;		// this should be found out from the device
- int ASH_CAPACITY = 0;			// this should be found out from the device
- 
- int ASH_BLOCKSIZE = 4096;		// this should be chosen at formatting
+int ASH_BLOCKSIZE 	= 4096;		// this should be chosen at formatting
   
 
 /*
@@ -58,3 +61,5 @@ struct ash_raw_file {
 	__u32	startblock;		// reference to both BAT and actual data block where file's data is stored
 	__u16	namelength;		// how long is the filename
 };
+
+#endif /* ash.h */
