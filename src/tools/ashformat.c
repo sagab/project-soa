@@ -113,8 +113,8 @@ int format(char *device, uint64_t size)
 	// clear struct
 	memset(&rentry, 0, sizeof(rentry));
 	
-	// sets all permissions for all users and sets sticky bit
-	rentry.mode = S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX;
+	// sets bits for directory, r/w/x for owner, r/w group & others
+	rentry.mode = S_IFDIR | S_IRWXU | (S_IRGRP | S_IXGRP) | (S_IROTH | S_IXOTH);
 	rentry.uid = rentry.gid = 1;
 	rentry.size = 0;
 	rentry.atime = rentry.wtime = rentry.ctime = now;
@@ -132,6 +132,12 @@ int format(char *device, uint64_t size)
 	int sw = fwrite(&s, sizeof(s), 1, fd);
 	if (sw != 1) {
 		printf("error while writing superblock\n");
+		return 1;
+	}
+	
+	// seek to the root directory entry location
+	if (fseek(fd, s.datastart * s.sectorsize, SEEK_SET) != 0) {
+		printf("error while trying to seek on the device file\n");
 		return 1;
 	}
 	
