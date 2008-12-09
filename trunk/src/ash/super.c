@@ -39,19 +39,33 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode * root;
 	struct dentry * root_dentry;
-	struct buffer_head * bh;
+	struct buffer_head *bh1, *bh2;
 	struct ash_raw_superblock *rsb;
-	mode_t def;
+	struct ash_raw_file *rfile;
 
 	// read sector 0 -> the superblock sector
-	bh = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
-	rsb = (struct ash_raw_superblock*)bh->b_data;
+	bh1 = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
+	if (!bh1) {
+		printk(KERN_ERR "__bread from the device failed\n");
+		return -1;
+	}
 	
-	// check if it's a ash filesystem
+	rsb = (struct ash_raw_superblock*)bh1->b_data;
+	
+	// check if it's an Ash filesystem
 	if (rsb->magic != ASH_MAGIC) {
 		printk(KERN_ERR "incorrect magic number\n");
-		brelse(bh);
-		return -1;
+		goto out_test;
+	}
+	
+	if (rsb->blocksize != 4096) {
+		printk(KERN_ERR "we only support blocksizes of 4096 bytes for now\n");
+		goto out_test;
+	}
+	
+	if (rsb->blockbits != 12) {
+		printk(KERN_ERR "blockbits: %d needs to be = 12 bits\n", rsb->blockbits);
+		goto out_test;
 	}
 	
 	// fill in superblock fields by using the superblock read from disk
@@ -66,20 +80,28 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = rsb;	// now, I wonder what happens to rsb after I brelse(bh) ^^.
 	
 	
-	// sanity check
+	// sanity info printout
 	printk("vers: %d volname: '%s'\n", rsb->vers, rsb->volname);
 
-
 	// create the root inode
+	brelse(bh1);
 	
-	// normal file permissions: owner can read/write/execute, the group and
-	// others can only r/w
-	def = S_IRWXU | (S_IRGRP|S_IWGRP) | (S_IROTH|S_IWOTH);
+	// read the root directory entry from the device
+	bh2 = __bread(sb->s_bdev, rsb->datastart, rsb->sectorsize);
+	if (!bh2) {
+		printk(KERN_ERR "cannot read root directory entry\n");
+		return -1;
+	}
 	
-	// root is also a directory, so S_IFDIR
-	root = ash_make_inode(sb, S_IFDIR | def);
+	rfile = (struct ash_raw_file*)bh2->b_data;
+	
+	printk("mod: %d, time: %d size: %d\n", rfile->mode, rfile->atime, bh2->b_size);
+	
+	return 0;
+	// making the root
+	root = ash_make_inode(sb, (mode_t)rfile->mode);
 	if (! root) {
-		brelse(bh);
+		brelse(bh2);
 		return -ENOMEM;
 	}
 
@@ -88,23 +110,25 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry = d_alloc_root(root);
 	if (! root_dentry) {
-		brelse(bh);
+		brelse(bh2);
 		iput(root);
 		return -ENOMEM;
 	}
 
+	// TODO here: parse all directory entry for the root and populate with files...
+	// but so far, there are none on the disk :D.
+	
 	// final superblock init
 	sb->s_root = root_dentry;
 	sb->s_op = &ash_super_operations;
 
-	brelse(bh);
-	
-	if (rsb != NULL)
-		printk("omg, a ramas si %d\n", rsb->vers);
-	else
-		printk("oops.\n");
+	brelse(bh2);
 
 	return 0;
+	
+out_test:
+	brelse(bh1);
+	return -1;
 }
 
 static int ash_get_sb(struct file_system_type *fs,
