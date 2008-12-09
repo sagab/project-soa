@@ -40,24 +40,22 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode * root;
 	struct dentry * root_dentry;
 	struct buffer_head * bh;
-	char test[10];
 
 	// init the superblock fields
 	sb->s_magic = ASH_MAGIC;
-	sb->s_blocksize = ASH_BLOCKSIZE;
-	//sb->s_blocksize_bits = ASH_BSIZE_BITS;
+	sb->s_blocksize = 4096;
 	sb->s_op = &ash_super_operations;
 
 	printk("phase 1 mounted \n");
 	
-	bh = sb_bread(sb, 0);
-	memcpy(test, bh->b_data, 9);
-	test[9]='\0';
+	// read sector 0 -> the superblock sector
+	bh = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
 
 	// create the root inode
 	root = ash_make_inode(sb, S_IFDIR | 0755);
 	if (! root)
 		return -ENOMEM;
+
 	root->i_op = &simple_dir_inode_operations;
 	root->i_fop = &simple_dir_operations;
 
@@ -69,7 +67,7 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	
 	sb->s_root = root_dentry;
 
-	printk("all done: '%s' si %d", test, bh->b_size);
+	printk("all done: %d", bh->b_size);
 
 	brelse(bh);
 

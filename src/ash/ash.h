@@ -14,12 +14,13 @@
 #include <linux/types.h>
  
 #define ASH_MAGIC		0x451
- 
-int ASH_SECTORSIZE 	= 512;		// this should be found out from the device
-int ASH_CAPACITY 	= 0;		// this should be found out from the device
- 
-int ASH_BLOCKSIZE 	= 4096;		// this should be chosen at formatting
-  
+#define ASH_VERSION		10
+#define ASH_SECTORSIZE 		512
+
+// states for the filesystem
+#define ASH_FAST_FORMAT		1
+#define ASH_DEEP_FORMAT		2
+
 
 /*
  * Represents the ASH superblock on the physical USB drive
@@ -51,9 +52,16 @@ struct ash_raw_superblock {
 	__u16	rootentry;		// block number of the root directory entry
 };
  
- 
+
+
+/*
+ * Represents a file/directory entry on the physical USB drive
+ *
+ */ 
 struct ash_raw_file {
 	__u16	mode;			// file type and access rights
+	__u32	uid;			// owner ID
+	__u32	gid;			// group ID
 	__u64	size;			// file length in bytes
 	__u32	atime;			// last accessed
 	__u32	wtime;			// last written
