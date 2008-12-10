@@ -68,7 +68,7 @@ Therefore, we need to choose a good number for block size on the disk, and it ca
 = Formulas =
 
 We should assume these are variable:
- * capacity = 1 GB for example (the actual size of my 1GB stick is... neither 10^9 nor 2^30, but for this example, let's consider 1GB = 10^9 to anticipate floating point results when dividing)
+ * capacity = 1 GB for example (the actual size of my 1GB stick is... neither 10^9^ nor 2^30^, but for this example, let's consider 1GB = 10^9^ to anticipate floating point results when dividing)
 
  * blocksize = 4096 bytes (must be a multiple of sectorsize)
  * blockbits = 12 (log ,,2,, 4096)
