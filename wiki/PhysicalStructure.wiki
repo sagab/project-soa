@@ -7,9 +7,11 @@ We need a plan to store the data on the disk, so after carefully considering Ext
 Consult the http://en.wikipedia.org/wiki/USB_flash_drive to get an idea about what USB flash stick capabilities are.
 
 The disk structure will look like this:
-|| Super Block || Block Allocation Table || block ,,datastart,, || block ,,datastart+1,, || ... || block ,,maxblocks-1,, ||
+|| Super Block || Used Blocks Bitmap || Block Allocation Table || block ,,datastart,, || block ,,datastart+1,, || ... || block ,,maxblocks-1,, ||
 
  * the Super Block has around 62 bytes of data (check the structure of ash_raw_superblock to get an idea) and starts right from the start of logical block ,,0,, on the disk.
+
+ * the Used Blocks Bitmap contains a set of bits which are 0 to indicate that a block is unused and 1 to indicate a block is used to store data.
 
  * the BAT (Block Allocation Table) is similar to the one used by FAT filesystem (http://www.usq.edu.au/users/leis/courses/ELE3305/fat.pdf) and starts right after the superblock, in terms of occupied bytes.
 
@@ -77,8 +79,9 @@ We should assume this is a constant:
  * sectorsize = 512 bytes
 
 This is what we need to find out:
- * BATsize = size of BAT table, in bytes
  * maxblocks = number of logical blocks on the device, from our chart
+ * UBBsize = size of the used blocks bitmap in bytes
+ * BATsize = size of BAT table, in bytes
  * datastart = first logical block from where we can find data.
  * (dB, dO) -> (kB, kO)? meaning how to translate from disk block, disk offset in the block, to kernel block and kernel offset in that block.
 
@@ -86,9 +89,11 @@ We will substitute the division sign by the bitshift operator, because all divis
 
 *maxblocks = capacity >> blockbits*
 
+*UBBsize = maxblocks >> 3*
+
 *BATsize = maxblocks << 2*
 
-*datastart = (sizeof(struct ash_raw_superblock) + BATsize) >> blockbits*
+*datastart = (sizeof(struct ash_raw_superblock) + UBBsize + BATsize) >> blockbits*
 
 *byteoffset = dB << blockbits + dO
 kB = byteoffset >> 12
@@ -100,6 +105,8 @@ kO = byteoffset & 0xFFF*
 
 maxblocks = 111011100110101100 = 244140
 
+UBBsize = 111011100110101 = 30517
+
 BATsize = 1110111001101011 = 61035
 
-datastart = (62 + 61035) >> 12 = 1110111010101001 >> 12 = 1110 = block 14.
+datastart = (62 + 30517 + 61035) >> 12 = 10110010111011110 >> 12 = 10110 = block 22.
