@@ -9,27 +9,21 @@ Consult the http://en.wikipedia.org/wiki/USB_flash_drive to get an idea about wh
 The disk structure will look like this:
 || Super Block || Used Blocks Bitmap || Block Allocation Table || block ,,datastart,, || block ,,datastart+1,, || ... || block ,,maxblocks-1,, ||
 
- * the Super Block has around 62 bytes of data (check the structure of ash_raw_superblock to get an idea) and starts right from the start of logical block ,,0,, on the disk.
+Each of the starting sections is aligned to a logical disk block size, even if it would occupy less.
 
- * the Used Blocks Bitmap contains a set of bits which are 0 to indicate that a block is unused and 1 to indicate a block is used to store data.
+ * the Super Block has around only 62 bytes of data (check the structure of ash_raw_superblock to get an idea) and takes up the first block.
 
- * the BAT (Block Allocation Table) is similar to the one used by FAT filesystem (http://www.usq.edu.au/users/leis/courses/ELE3305/fat.pdf) and starts right after the superblock, in terms of occupied bytes.
+ * the Used Blocks Bitmap starts from block ,,1,, and contains one bit for every block on the disk, which says whether the block is used for storage or is empty. This zone also takes up a number of blocks on the disk, UBBblocks.
+
+ * the BAT (Block Allocation Table) is similar to the one used by FAT filesystem (http://www.usq.edu.au/users/leis/courses/ELE3305/fat.pdf) and starts with the block after the UBB blocks, having a size of BATblocks on the disk.
 
 Let's imagine a file is stored in several blocks, for example 2, 4, 1, in that order. The file's directory entry structure will contain a reference to the first block used to store the data, which is 2.
 
 To read the next part of the file, the filesystem manager will look in BAT at the index 2, and find the block number 4. It reads the next one third of the file. Then it will look at index 4 in the BAT and find the number 1. Goes and reads block 1 and finishes reading. The BAT will store 0 for the next reference number, indicating it has reached the end.
 
-The BAT is stored as a vector with maxblocks entries and each of them is a reference to an existing logical disk block number between 0 and maxblocks-1. We can mark one of the references unused if we put a 0 value which corresponds to the first block number, which is obviously filled with the BAT, and cannot have actual data for files. Each entry is a 32bit block number, therefore it takes us 4 bytes to store such a reference.
+The BAT is stored as a vector with maxblocks entries and each of them is a reference to an existing logical disk block number between 0 and maxblocks-1. We can mark one of the references unused if we put a 0 value which corresponds to the first block number, which is obviously filled with the superblock, and cannot have actual data for files. Each entry is a 32bit block number, therefore it takes us 4 bytes to store such a reference.
 
-The size of the BAT in bytes and the number of blocks needs to be computed from the size of the physical disk, by using a few formulas.
-
- * the area comprised of block datastart..maxblocks-1 is the Data Area.
-
-_Special notes_:
- * The Superblock is rounded up to 1 sector.
- * The BAT starts from 2nd sector
- * The space between the BAT and where the next disk logical block starts will not be used.
- * logical disk block 0 starts from sector 0
+ * the area comprised of actual data blocks is from block ,,datastart,, .. to block ,,maxblocks-1,,
 
 
 
@@ -80,20 +74,18 @@ We should assume this is a constant:
 
 This is what we need to find out:
  * maxblocks = number of logical blocks on the device, from our chart
- * UBBsize = size of the used blocks bitmap in bytes
- * BATsize = size of BAT table, in bytes
+ * UBBblocks = blocks occupied by the UBB
+ * BATblocks = blocks occupied by the BAT
  * datastart = first logical block from where we can find data.
  * (dB, dO) -> (kB, kO)? meaning how to translate from disk block, disk offset in the block, to kernel block and kernel offset in that block.
 
-We will substitute the division sign by the bitshift operator, because all divisions are by powers of 2 :).
+*maxblocks = (uint32_t) ceil ((double)capacity / blocksize) *
 
-*maxblocks = capacity >> blockbits*
+*UBBblocks = (uint32_t) ceil ( ceil( (double)maxblocks / 8 ) / blocksize )*
 
-*UBBsize = maxblocks >> 3*
+*BATblocks =  (uint32_t) ceil( (double)maxblocks * 4 / blocksize )
 
-*BATsize = maxblocks << 2*
-
-*datastart = (sizeof(struct ash_raw_superblock) + UBBsize + BATsize) >> blockbits*
+*datastart = 1 + UBBblocks + BATblocks*
 
 *byteoffset = dB << blockbits + dO
 kB = byteoffset >> 12
