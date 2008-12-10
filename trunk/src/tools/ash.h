@@ -16,6 +16,7 @@
 #define ASH_MAGIC		0x451
 #define ASH_VERSION		10
 #define ASH_SECTORSIZE 		512
+#define ASH_SECTORBITS		9
 
 // these are just default values and can be changed at format
 #define ASH_BLOCKSIZE		4096
