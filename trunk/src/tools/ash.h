@@ -57,9 +57,11 @@ struct ash_raw_superblock {
 	
 	char		volname[16];		// volume name
 	
-	uint16_t	UBBsize;		// size of the Used Blocks Bitmap in bytes
-	uint16_t	BATsize;		// size of Block Allocation Table in bytes
-	uint16_t	datastart;		// index of the first block of data (using Ash's blocksize)
+	uint16_t	UBBblocks;		// size of the Used Blocks Bitmap in blocks
+	uint16_t	BATblocks;		// size of Block Allocation Table in blocks
+	uint16_t	UBBstart;		// block where UBB starts
+	uint16_t	BATstart;		// block where BAT starts
+	uint16_t	datastart;		// block where data starts
 };
 
 

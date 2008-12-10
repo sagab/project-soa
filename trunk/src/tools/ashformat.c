@@ -22,9 +22,9 @@
  * Get the size in bytes of a device
  *
  * @device name of the device in the /dev system
- * @return the size of the device in bytes. 0 on error.
+ * @return the size of the device in sectors. 0 on error.
  */
-uint64_t getsize(char *device)
+unsigned long long getsize(char *device)
 {
 	int k = strlen(device);
 	char path[k+20];
@@ -54,8 +54,8 @@ uint64_t getsize(char *device)
 		return 0;
 	}
 	
-	uint64_t rez;
-	int sw = fscanf(f,"%d", &rez);
+	unsigned long long rez;
+	int sw = fscanf(f,"%llu", &rez);
 	
 	// close
 	fclose(f);
@@ -64,9 +64,6 @@ uint64_t getsize(char *device)
 		printf("unknown file format for '%s'\n", path);
 		return 0;
 	}
-	
-	// multiply the size in sectors by sectorsize (512 = 2^9)
-	rez <<= ASH_SECTORBITS;
 	
 	return rez;
 }
@@ -77,11 +74,11 @@ uint64_t getsize(char *device)
  * Format the device with AshFS
  * @device The name of the device in /dev
  * @bsize block size in bytes for Ash
- * @size device capacity in bytes
+ * @size device capacity in sectors
  * @name volume name
  * @return 0 on ok.
  */
-int format(char *device, uint16_t bsize, uint64_t size, char *volname)
+int format(char *device, uint16_t bsize, unsigned long long size, char *volname)
 {
 	// fill in a superblock structure
 	struct ash_raw_superblock s;
@@ -95,18 +92,20 @@ int format(char *device, uint16_t bsize, uint64_t size, char *volname)
 	
 	// formula on the wiki
 	// http://code.google.com/p/project-soa/wiki/PhysicalStructure
-	long long mb = (long long)size / 4096;
-	printf("size %d, max block %d\n ", size, mb);
-	s.maxblocks = size >> s.blockbits;
-	s.UBBsize = s.maxblocks >> 3;
-	s.BATsize = s.maxblocks << 2;
+	s.maxblocks = size >> (s.blockbits - ASH_SECTORBITS);
+	s.UBBblocks =  (uint16_t) ceil(ceil((double)s.maxblocks / 8) / s.blocksize);
 	
-	uint16_t total = sizeof(s) + s.UBBsize + s.BATsize;
-	s.datastart = total >> s.blockbits;
+	// check if it's not a perfect fit
+	if (s.maxblocks & 7 != 0)
+		s.UBBblocks ++;
+
+	s.UBBstart = 1;		// start right after superblock
+	s.BATstart = s.UBBstart + s.UBBblocks;
 	
-	// in case it occupies more, take the additional space up to next block
-	if (total > (s.datastart << s.blockbits))
-		s.datastart ++;
+	uint64_t tmp = s.maxblocks * 4;
+	s.BATblocks = (uint16_t) ceil((double)tmp / s.blocksize);
+	
+	s.datastart = s.BATstart + s.BATblocks;
 	
 	s.mnt_count = 0;
 	s.max_mnt_count = ASH_MAX_MOUNTS;
@@ -140,99 +139,84 @@ int format(char *device, uint16_t bsize, uint64_t size, char *volname)
 	rentry.namelength = 0;		// root dir doesn't have a name
 	
 	// trying to open the device file
-	FILE *fd = fopen("/root/test.log", "w+");
+	FILE *fd = fopen(device, "w");
 	if (!fd) {
 		printf("cannot open device for writing\n");
 		return 1;	
 	}
 	
-	// writing the superblock structure
-	int sw = fwrite(&s, sizeof(s), 1, fd);
+	
+	// making a small buffer
+	unsigned char buf[512];
+	memset(buf, 0, 512);	// clear it
+
+	// copy superblock into buffer
+	memcpy(buf, &s, sizeof(s));
+	
+	int sectors = s.blocksize / s.sectorsize;
+	
+	// writing the first block on device
+	int sw = fwrite(buf, 512, 1, fd);
 	if (sw != 1) {
-		printf("error while writing superblock\n");
+		printf("error while writing superblock full zone\n");
 		return 1;
 	}
 	
-	// writing the used block bitmap
-	uint8_t buf[512];
-	
-	// bytes representing used blocks -> therefore = FF
-	uint16_t bytes = s.datastart >> 3;
-	
-	// number of unused blocks in the last byte
-	uint16_t bits = 8 - s.UBBsize & 7;
-	
-	// this will insert zeroes in the octet
-	uint16_t last = (0xFF >> bits) << bits;
-	
-	// unless we're somehow talking about a 22 TB flash drive,
-	// there's no way for bytes >= 512, so they all fit in buf.
-	memset(buf, 0, 512);		// clear all
-	memset(buf, 0xFF, bytes);	// set bytes of them to 0xFF
-	buf[bytes] = last;		// set the last partially used one
-	
-	printf("UBB used bytes: %d, bits: %d, last= %x\n", bytes, bits, last);
-	
-	// write first bytes + 1 bytes.
-	sw = fwrite(&buf, sizeof(uint8_t), bytes + 1, fd);
-	if (sw != bytes + 1) {
-		printf("error while writing UBB\n");
-		return 1;
-	}
-	
-	// write last part of big 0-es
-	uint16_t left = s.UBBsize - bytes - 1;		// bytes left to copy
-	int n = left >> 9;		// chunks of 512 bytes from left
-	memset(buf, 0, 512);
-	
-	// mass copy
+	memset(buf, 0, 512);	// clear
+
+	// write the empty sectors
 	int i;
-	for (i = 0; i < n; i++) {
-		sw = fwrite(&buf, sizeof(uint8_t), 512, fd);
-		if (sw != 512) {
-			printf("error while writing UBB\n");
+	for (i = 0; i < sectors - 1; i++) {
+		sw = fwrite(buf, 512, 1, fd);
+		if (sw != 1) {
+			printf("error while writing superblock empty zone\n");
 			return 1;
 		}
-		
-		left -= 512;	// adjust number of bytes left
 	}
 	
-	// small size copy
-	sw = fwrite(&buf, sizeof(uint8_t), left, fd);
-	if (sw != left) {
-		printf("error while writing UBB\n");
+	// write the block bitmap
+	int bytes = s.datastart / 8;		// how many bytes in UBB we need for the used blocks
+	int bits = 8 - s.datastart % 8;		// number of unused bits in last byte
+	uint8_t last = (0xFF >> bits) << bits;	// padding last byte with 0 bits
+
+	// used blocks just by 1 + UBB + BAT cannot be > 512*8 (4096), unless
+	// there are flash sticks of 25 TB, so bytes characters will fit into a single buffer.
+
+	memset(buf, 0, 512);	// clear
+	memset(buf, 0xFF, bytes);
+	buf[bytes] = last;
+	
+	sw = fwrite(buf, 512, 1, fd);
+	if (sw != 1) {
+		printf("error while writing UBB full zone\n");
 		return 1;
 	}
 
-	printf("UBB left=%d n=%d\n", left, n);
+	memset(buf, 0, 512);	// clear
 	
-	// writing BAT table with zeroes
+	// write the bits for the rest of the unused blocks
+	int nr = s.UBBblocks * sectors - 1;
+	
+	for (i = 0; i < nr; i++ ) {
+		sw = fwrite(buf, 512, 1, fd);
+		if (sw != 1) {
+			printf("error while writing UBB empty zone", sw, nr);
+			return 1;
+		}
+	}
+	
+	// For writing the BAT, I will just leave it empty with 0.
+	
+	// write the empty BAT blocks
 	memset(buf, 0, 512);
-
-	left = s.BATsize;
-	n = left >> 9;
-	for (i = 0; i < n; i++) {
-		sw = fwrite(&buf, sizeof(uint8_t), 512, fd);
-		if (sw != 512) {
+	nr = s.BATblocks * sectors;
+	
+	for (i = 0; i < nr; i++) {
+		sw = fwrite(buf, 512, 1, fd);
+		if (sw != 1) {
 			printf("error while writing BAT\n");
 			return 1;
 		}
-		
-		left -= 512;
-	}
-	
-	sw = fwrite(&buf, sizeof(uint8_t), left, fd);
-	if (sw != left) {
-		printf("error while writing UBB\n");
-		return 1;
-	}
-	
-	printf("BAT left=%d n=%d\n", left, n);
-	
-	// seek to the root directory entry location
-	if (fseek(fd, rentry.startblock * s.blocksize, SEEK_SET) != 0) {
-		printf("error while trying to seek on the device file\n");
-		return 1;
 	}
 	
 	// writing the root directory entry structure
@@ -244,6 +228,8 @@ int format(char *device, uint16_t bsize, uint64_t size, char *volname)
 	
 	// closing device
 	fclose(fd);
+	
+	uint64_t te = size;
 
 	// printout verbose info
 	printf("\n");
@@ -252,9 +238,9 @@ int format(char *device, uint16_t bsize, uint64_t size, char *volname)
 	printf("block size: %d bytes\n", s.blocksize);
 	printf("block bits: %d\n", s.blockbits);
 	printf("max blocks: %d\n", s.maxblocks);
-	printf("UBBsize: %d bytes\n", s.UBBsize);
-	printf("BATsize: %d bytes\n", s.BATsize);
-	printf("datastart @ block: %d\n\n", s.datastart);
+	printf("UBBblocks: %d\n", s.UBBblocks);
+	printf("BATblocks: %d\n", s.BATblocks);
+	printf("datastart: %d\n\n", s.datastart);
 	
 	return 0;
 }
@@ -292,7 +278,7 @@ int main(int argc, char **argv)
 	}
 	
 	char volname[16];
-	uint64_t size;
+	uint64_t sectors;
 	int bsize;
 	int devicearg;
 
@@ -371,14 +357,14 @@ int main(int argc, char **argv)
 	
 	
 	// get device info
-	size = getsize(argv[devicearg]);
-	if (size == 0) {
+	sectors = getsize(argv[devicearg]);
+	if (sectors == 0) {
 		printf("the device '%s' isn't a valid block device!\n", argv[devicearg]);
 		return 2;
 	}
 	
 	// format the device media
-	int sw = format(argv[devicearg], bsize, size, volname);
+	int sw = format(argv[devicearg], bsize, sectors, volname);
 	if (sw == 0) {
 		printf("Formatting OK.\n");
 	} else
