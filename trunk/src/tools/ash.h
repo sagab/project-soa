@@ -16,12 +16,14 @@
 #define ASH_MAGIC		0x451
 #define ASH_VERSION		10
 #define ASH_SECTORSIZE 		512
+
+// these are just default values and can be changed at format
 #define ASH_BLOCKSIZE		4096
 #define ASH_BLOCKBITS		12
 
 // states for the filesystem
-#define ASH_FAST_FORMAT		1
-#define ASH_DEEP_FORMAT		2
+#define ASH_UMOUNT		1
+#define ASH_MOUNTED		2
 
 #define ASH_MAX_MOUNTS		30
 
@@ -29,6 +31,7 @@
 #define HOUR			60*MINUTE
 #define DAY			24*HOUR
 #define ASH_MAX_CHECK		30*DAY
+
 
 /*
  * Represents the ASH superblock on the physical USB drive
@@ -38,7 +41,6 @@ struct ash_raw_superblock {
 	uint16_t	sectorsize;		// size of a physical unit of storage in bytes
 	uint16_t	blocksize;		// size of a logical unit of storage in bytes
 	uint32_t	maxblocks;		// number of blocks
-	uint64_t	maxsectors;		// number of sectors
 	uint8_t		blockbits;		// how many bits to represent blocksize
 	
 	uint16_t	mnt_count;		// how many times it was mounted
@@ -50,14 +52,32 @@ struct ash_raw_superblock {
 
 	uint8_t		state;			// state of the filesystem	
 	uint16_t	magic;			// contains ASH_MAGIC for valid superblock
-	uint16_t	vers;			// divide by 100 to display ASH version
+	uint16_t	vers;			// divide by 128 to display ASH version
 	
 	char		volname[16];		// volume name
 	
-	uint16_t	BATsize;		// size of Block Allocation Table in blocks
-	uint16_t	BATsectors;		// size of BAT in sectors
-	uint16_t	datastart;		// number of first data sector (it's an offset)
-	uint16_t	rootentry;		// block number of the root directory entry
+	uint16_t	UBBsize;		// size of the Used Blocks Bitmap in bytes
+	uint16_t	BATsize;		// size of Block Allocation Table in bytes
+	uint16_t	datastart;		// index of the first block of data (using Ash's blocksize)
+};
+
+
+
+// values defined for ash_raw_file.ashtype field
+#define ASHTYPE_NORMAL		1
+#define ASHTYPE_CRYPT		2
+#define ASHTYPE_COMP		3
+#define ASHTYPE_CRYPTCOMP	4
+#define ASHTYPE_COMPCRYPT	5
+#define ASHTYPE_HASHEDDIR	6
+
+
+/*
+ * Represents an entry in a hashtable for finding information in a block
+ */
+struct ash_raw_hashentry {
+	uint32_t	block;
+	uint16_t	off;
 };
 
 
@@ -66,7 +86,8 @@ struct ash_raw_superblock {
  *
  */
 struct ash_raw_file {
-	uint16_t	mode;			// file type and access rights
+	uint16_t	mode;			// Linux file type and access rights
+	uint8_t		ashtype;		// special Ash type
 	uint32_t	uid;			// owner ID
 	uint32_t	gid;			// group ID
 	uint64_t	size;			// file length in bytes
