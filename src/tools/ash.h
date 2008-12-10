@@ -7,6 +7,10 @@
  *
  * For licensing information, see the file 'LICENSE'
  */
+
+#ifndef 	__ASH_H__
+#define __ASH_H__
+
 #include <stdint.h>  
  
 #define ASH_MAGIC		0x451
@@ -72,3 +76,5 @@ struct ash_raw_file {
 	uint32_t	startblock;		// reference to both BAT and actual data block where file's data is stored
 	uint16_t	namelength;		// how long is the filename
 };
+
+#endif /* ash.h */

@@ -2,8 +2,10 @@
 # Makefile for the AshFS Tools
 #
 
+CC=gcc
+
 build:
-	gcc -o ashformat ashformat.c
+	$(CC) -o ashformat ashformat.c
 
 clean:
-	rm ashformat
+	rm -f ashformat *.o
