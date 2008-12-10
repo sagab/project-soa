@@ -7,65 +7,99 @@ We need a plan to store the data on the disk, so after carefully considering Ext
 Consult the http://en.wikipedia.org/wiki/USB_flash_drive to get an idea about what USB flash stick capabilities are.
 
 The disk structure will look like this:
-|| SuperBlock || Block Allocation Table || block 0 || block 1 || ... || block n-1 ||
+|| Super Block || Block Allocation Table || block ,,datastart,, || block ,,datastart+1,, || ... || block ,,maxblocks-1,, ||
 
- * the SuperBlock fits in the sector 0 of the drive (currently around 62 bytes of data, check the structure of ash_raw_superblock to get an idea)
+ * the Super Block has around 62 bytes of data (check the structure of ash_raw_superblock to get an idea) and starts right from the start of logical block ,,0,, on the disk.
 
- * the BAT (Block Allocation Table) is similar to the one used by FAT filesystem (http://www.usq.edu.au/users/leis/courses/ELE3305/fat.pdf). Basically, let's imagine a file is stored in several blocks, for example 5, 4, 1, in that order. The file's directory entry structure will contain a reference to the first block used to store the data, which is 5.
+ * the BAT (Block Allocation Table) is similar to the one used by FAT filesystem (http://www.usq.edu.au/users/leis/courses/ELE3305/fat.pdf) and starts right after the superblock, in terms of occupied bytes.
 
-To read the next part of the file, the filesystem manager will look in BAT at the index 5, and find the block number 4. It reads the next one third of the file. Then it will look at index 4 in the BAT and find the number 1. Goes and reads block 1 and finishes reading. The BAT will store FFFF... for the next reference number, indicating it has reached the end.
+Let's imagine a file is stored in several blocks, for example 2, 4, 1, in that order. The file's directory entry structure will contain a reference to the first block used to store the data, which is 2.
 
-The BAT is stored in a certain number of sectors and each one of its entries is a reference to an existing block number between 0 and n-1. We can mark one of the references unused if we put a FF... value which corresponds to a block number that cannot possibly exist on the drive due to space limits. Each entry is a 32bit block number, therefore it takes us 4 bytes to store such a reference.
+To read the next part of the file, the filesystem manager will look in BAT at the index 2, and find the block number 4. It reads the next one third of the file. Then it will look at index 4 in the BAT and find the number 1. Goes and reads block 1 and finishes reading. The BAT will store 0 for the next reference number, indicating it has reached the end.
 
-The size of the BAT in sectors and the number of blocks needs to be computed from the size of the physical disk, by using a few formulas.
+The BAT is stored as a vector with maxblocks entries and each of them is a reference to an existing logical disk block number between 0 and maxblocks-1. We can mark one of the references unused if we put a 0 value which corresponds to the first block number, which is obviously filled with the BAT, and cannot have actual data for files. Each entry is a 32bit block number, therefore it takes us 4 bytes to store such a reference.
 
- * the area comprised of block 0..n-1 is the Data Area.
+The size of the BAT in bytes and the number of blocks needs to be computed from the size of the physical disk, by using a few formulas.
+
+ * the area comprised of block datastart..maxblocks-1 is the Data Area.
+
+_Special notes_:
+ * The Superblock is rounded up to 1 sector.
+ * The BAT starts from 2nd sector
+ * The space between the BAT and where the next disk logical block starts will not be used.
+ * logical disk block 0 starts from sector 0
+
+
+
+= Logical Disk Blocks, Sectors, Logical Kernel Blocks =
+
+By *sector*, we understand the smallest possible unit in which data can be read from the block device. As a legacy, this value has been maintained to 512 bytes for all known device types over the years, and therefore whenever we are dealing with sector numbers, the sectorsize will be 512, in all contexts.
+
+*Logical Kernel Blocks* are what the Linux kernel perceives as beeing the unit to read from a block device. Currently, that value is 4096 bytes and attempting to read less (say, a sector) or more from a random location on the device WILL block the kernel. This has been thoroughly tested, so whenever we are making writes or reads by using __bread, sb_bread, etc, we must specify a "sector" number which is actually the number of the kernel logical block and a size of how much to read in the buffer.
+
+
+*Logical Disk Blocks* are what we need to use to address space on the physical disk. The reason why this must exist is that at some point, the disk becomes fragmented in order to store a new large enough file, and instead of keeping for each file 2 values indicating that it starts on byte x of the drive and ends on byte y, we need an actual linked list with (x,y) pairs for every part of the file. This tends to occupy a lot of space, so a different method is used: we split the disk into larger units, and make a vector that stores linked chains between its elements (this is of course the BAT, but its functions are more than just that).
+
+Assuming a 1 GB capacity for the drive, and block size of 1 sector, we have 2 million blocks. Therefore, a block number needs a 32 bit unsigned integer to be stored, so 4 bytes. We need to have a BAT of 2 million entries, each of them 4 bytes long, so the BAT takes up 8 MB.
+
+Let's assume now a block size of 4096 bytes (4K), which leads to 250K blocks. 250K also needs 32 bits for storing a number, but the table only has 1 MB, which makes it easier to have in memory.
+
+Assume block size of 32768 bytes (32K), which leads to 31K blocks. 31K blocks can be addressed by 16 bits, therefore 2 bytes, which leads to a table of 62K size. Quite a big difference from the 8 MB one, right?
+
+What's the problem with using big block sizes then? Setting up a logical block size is only the first part. Our problem was defragmented files, and storing them as a multiple of blocks was the answer. If a file is a multiple of such a block, one can only start from the start of the block, therefore the last block will have a lot of wasted space, unless all files are perfect multiples of block size. Now, assuming 32K block sizes... and filesizes which leave 16K free from the last block (filesize = 32K * n + 16K), every 100 files we will be wasting 16K * 100 = 1.6 MB. Say those 100 files are just 48K in size, for n=1 and we get a nice waste of 1.6 MB for 4.8MB worth of files, which is 33% wasted space.
+
+Therefore, we need to choose a good number for block size on the disk, and it can only be a power of 2 because of making it easier to compute relative offsets if we're only multiplying or dividing by powers of 2, which can be shifted around in registers. We can't use normal divides or floating point in Linux kernel space anyway.
+
+*Further problems*
+ * Why not use 3 byte numbers for storing block references in BAT, when we get 1024 bytes blocksize, in order to minimize the entry length in the BAT? That is because the registers aren't in lengths of 3 bytes, which will make operations with them a very tedious thing to think about :). Therefore, either 2 byte entries, or 4 bytes ones, no inbetween.
+
+ * We always have to translate these references on the disk to the kernel's 4K block sizes for the read/write operations.
+
+ * The block size will always be a multiple of sectorsize, as a consequence of defining the sector. Therefore, 1 block = 1, 2, 4, 8, 16 sectors usually.
+
+ * Block numbers are on 32 bits, regardless how many sectors a disk can have. Therefore, we get these limits for disk capacities (and filesize, actually):
+|| Size of blocks (bytes) || Max capacity ||
+|| 512 || 2.2 TB ||
+|| 1024 || 4.4 TB ||
+|| 4096 || 17.6 TB ||
+
+
 
 = Formulas =
 
 We should assume these are variable:
- * capacity = 1 GB for example (GB = 10^9 in this case)
+ * capacity = 1 GB for example (the actual size of my 1GB stick is... neither 10^9 nor 2^30, but for this example, let's consider 1GB = 10^9 to anticipate floating point results when dividing)
+
  * blocksize = 4096 bytes (must be a multiple of sectorsize)
+ * blockbits = 12 (log ,,2,, 4096)
 
 We should assume this is a constant:
  * sectorsize = 512 bytes
 
 This is what we need to find out:
- * BATsectors = size of BAT table, in sectors
  * BATsize = size of BAT table, in bytes
- * maxblocks = number of data blocks on the device, from our chart
- * maxsectors = number of sectors on the device
+ * maxblocks = number of logical blocks on the device, from our chart
+ * datastart = first logical block from where we can find data.
+ * (dB, dO) -> (kB, kO)? meaning how to translate from disk block, disk offset in the block, to kernel block and kernel offset in that block.
 
-By division sign / we mean integer division, as by C standard.
+We will substitute the division sign by the bitshift operator, because all divisions are by powers of 2 :).
 
-*maxsectors = capacity / sectorsize*
+*maxblocks = capacity >> blockbits*
 
-1 + BATsectors + maxblocks x (blocksize / sectorsize) = maxsectors, the 1 comes from SuperBlock sector.
+*BATsize = maxblocks << 2*
 
-*BATsize = maxblocks x 4*, for each block we have a 32bit reference
+*datastart = (sizeof(struct ash_raw_superblock) + BATsize) >> blockbits*
 
-*BATsectors = maxblocks x 4 / sectorsize + 1*, adding a 1 because BAT must be rounded up to the next sector edge.
+*byteoffset = dB << blockbits + dO
+kB = byteoffset >> 12
+kO = byteoffset & 0xFFF*
 
-Therefore,
-
-1 + maxblocks x 4 / sectorsize + 1 + maxblocks x blocksize / sectorsize = capacity / sectorsize
-
-amplify by sectorsize,
-
-2 x sectorsize + maxblocks x 4 + maxblocks x blocksize = capacity
-
-maxblocks x ( blocksize + 4 ) = capacity - 2 x sectorsize
-
-*maxblocks = ( capacity - 2 x sectorsize) / ( blocksize + 4 )*
 
 = Results on 1 GB stick example =
+1 GB = 10^9 (in this example) = 111011100110101100101000000000
 
-maxsectors = 10^9/512 = 1953125 (21 bits to represent a sector number)
+maxblocks = 111011100110101100 = 244140
 
-maxblocks = (10^9 - 1024)  / (4096 + 4) = 243902 blocks. (18 bits to represent a block number)
+BATsize = 1110111001101011 = 61035
 
-BATsize = 243902 x 4 = 975608 bytes (approx 1 MB).
-
-BATsectors = 243902 x 4 / 512 + 1 = 1906 sectors.
-
-Therefore, block 0 of data starts at sector 1907. (the superblock will also have to remember this little computation in order to insert this delta whenever we're asking to retrieve or write data on the device).
+datastart = (62 + 61035) >> 12 = 1110111010101001 >> 12 = 1110 = block 14.
