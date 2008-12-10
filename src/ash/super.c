@@ -42,6 +42,7 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	struct buffer_head *bh;
 	struct ash_raw_superblock *rsb;
 	struct ash_raw_file *rfile;
+	__u16 start;
 
 	// read sector 0 -> the superblock sector
 	bh = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
@@ -87,19 +88,20 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	brelse(bh);
 	
 	// read the root directory entry from the device
-	bh = __bread(sb->s_bdev, rsb->datastart, rsb->blocksize);
+	bh = __bread(sb->s_bdev, rsb->datastart >> 3, rsb->blocksize);
 	if (!bh) {
 		printk(KERN_ERR "cannot read root directory entry\n");
 		return -1;
 	}
 	
+	start = rsb->datastart & 7;
+	
 	// it's fucked up cause I can only read in chunks of 4096 bytes in the kernel, 
-	// so all offsets are wrong... let's just create the damned file...
-	// gona fix offsets later to be able to actually read root dentry 
-	rfile = (struct ash_raw_file*)bh->b_data;
+	// so all offsets are wrong...
+	rfile = (struct ash_raw_file*) ((char*)bh->b_data + start);
 	
 	// making the root
-	root = ash_make_inode(sb, S_IFDIR|0755);
+	root = ash_make_inode(sb, rfile->mode);
 	if (! root) {
 		brelse(bh);
 		return -ENOMEM;
