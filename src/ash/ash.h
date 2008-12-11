@@ -15,8 +15,15 @@
  
 #define ASH_MAGIC		0x451
 #define ASH_VERSION		10
+
 #define ASH_SECTORSIZE 		512
 #define ASH_SECTORBITS		9
+
+// these values need to be used for reading/writing,
+// unless we want to block the kernel :P
+#define KERNEL_BLOCKSIZE	4096
+#define KERNEL_BLOCKBITS	12
+
 
 // states for the filesystem
 #define ASH_UMOUNT		1
