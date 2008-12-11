@@ -135,7 +135,7 @@ int format(char *device, uint16_t bsize, unsigned long long size, char *volname)
 	rentry.uid = rentry.gid = 1;
 	rentry.size = 0;
 	rentry.atime = rentry.wtime = rentry.ctime = now;
-	rentry.startblock = s.datastart;
+	rentry.startblock = s.datastart + 1;
 	rentry.namelength = 0;		// root dir doesn't have a name
 	
 	// trying to open the device file
@@ -175,8 +175,8 @@ int format(char *device, uint16_t bsize, unsigned long long size, char *volname)
 	}
 	
 	// write the block bitmap
-	int bytes = s.datastart / 8;		// how many bytes in UBB we need for the used blocks
-	int bits = 8 - s.datastart % 8;		// number of unused bits in last byte
+	int bytes = rentry.startblock / 8;		// how many bytes in UBB we need for the used blocks
+	int bits = 8 - rentry.startblock % 8;		// number of unused bits in last byte
 	uint8_t last = (0xFF >> bits) << bits;	// padding last byte with 0 bits
 
 	// used blocks just by 1 + UBB + BAT cannot be > 512*8 (4096), unless
