@@ -16,10 +16,11 @@
 #define ASH_MAGIC		0x451
 #define ASH_VERSION		10
 #define ASH_SECTORSIZE 		512
+#define ASH_SECTORBITS		9
 
 // states for the filesystem
-#define ASH_FAST_FORMAT		1
-#define ASH_DEEP_FORMAT		2
+#define ASH_UMOUNT		1
+#define ASH_MOUNTED		2
 
 
 /*
@@ -30,7 +31,6 @@ struct ash_raw_superblock {
 	__u16	sectorsize;		// size of a physical unit of storage in bytes
 	__u16	blocksize;		// size of a logical unit of storage in bytes
 	__u32	maxblocks;		// number of blocks
-	__u64	maxsectors;		// number of sectors
 	__u8	blockbits;		// how many bits to represent blocksize
 	
 	__u16	mnt_count;		// how many times it was mounted
@@ -46,20 +46,40 @@ struct ash_raw_superblock {
 	
 	char	volname[16];		// volume name
 	
-	__u16	BATsize;		// size of Block Allocation Table in blocks
-	__u16	BATsectors;		// size of BAT in sectors
-	__u16	datastart;		// number of first data sector (it's an offset)
-	__u16	rootentry;		// block number of the root directory entry
+	__u16	UBBblocks;		// size of the Used Blocks Bitmap in blocks
+	__u16	BATblocks;		// size of Block Allocation Table in blocks
+	__u16	UBBstart;		// block where UBB starts
+	__u16	BATstart;		// block where BAT starts
+	__u16	datastart;		// block where data starts
 };
  
+
+
+// values defined for ash_raw_file.ashtype field
+#define ASHTYPE_NORMAL		1
+#define ASHTYPE_CRYPT		2
+#define ASHTYPE_COMP		3
+#define ASHTYPE_CRYPTCOMP	4
+#define ASHTYPE_COMPCRYPT	5
+#define ASHTYPE_HASHEDDIR	6
+
+
+/*
+ * Represents an entry in a hashtable for finding information in a block
+ */
+struct ash_raw_hashentry {
+	__u32	block;
+	__u16	off;
+};
 
 
 /*
  * Represents a file/directory entry on the physical USB drive
  *
- */ 
+ */
 struct ash_raw_file {
-	__u16	mode;			// file type and access rights
+	__u16	mode;			// Linux file type and access rights
+	__u8	ashtype;		// special Ash type
 	__u32	uid;			// owner ID
 	__u32	gid;			// group ID
 	__u64	size;			// file length in bytes
