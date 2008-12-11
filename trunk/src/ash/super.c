@@ -17,23 +17,13 @@
 #include <asm/string.h>
 #include "ash.h"
 
-static atomic_t testcount;
-
 static struct super_operations ash_super_operations = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
 };
 
-extern struct dentry * ash_create_file (struct super_block  *, struct dentry *, const char *, void *);
 extern struct inode * ash_make_inode (struct super_block *, int);
-
-static void ash_create_testfile (struct super_block *sb, struct dentry *root)
-{
-	atomic_set(&testcount, 0);
-
-	// create a testfile, passing the testcount as private data pointer
-	ash_create_file(sb, root, "counter" , &testcount);
-} 
+extern struct file_operations ash_dir_operations;
 
 static int ash_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -82,8 +72,6 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 		return -1;
 	}
 	
-	// it's fucked up cause I can only read in chunks of 4096 bytes in the kernel, 
-	// so all offsets are wrong...
 	rfile = (struct ash_raw_file*) (bh->b_data);
 	
 	// making the root
@@ -94,7 +82,10 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	root->i_op = &simple_dir_inode_operations;
-	root->i_fop = &simple_dir_operations;
+	root->i_fop = &ash_dir_operations;
+	
+	// set private data
+	root->i_private = rfile;
 
 	root_dentry = d_alloc_root(root);
 	if (! root_dentry) {
@@ -103,9 +94,6 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	}
 
-	// TODO here: parse all directory entry for the root and populate with files...
-	// but so far, there are none on the disk :D.
-	
 	// final superblock init
 	sb->s_root = root_dentry;
 	sb->s_op = &ash_super_operations;
