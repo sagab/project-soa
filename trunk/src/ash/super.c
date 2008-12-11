@@ -42,7 +42,6 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	struct buffer_head *bh;
 	struct ash_raw_superblock *rsb;
 	struct ash_raw_file *rfile;
-	__u16 start;
 
 	// read sector 0 -> the superblock sector
 	bh = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
@@ -59,16 +58,6 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_test;
 	}
 	
-	if (rsb->blocksize != 4096) {
-		printk(KERN_ERR "we only support blocksizes of 4096 bytes for now\n");
-		goto out_test;
-	}
-	
-	if (rsb->blockbits != 12) {
-		printk(KERN_ERR "blockbits: %d needs to be = 12 bits\n", rsb->blockbits);
-		goto out_test;
-	}
-	
 	// fill in superblock fields by using the superblock read from disk
 	sb->s_blocksize = rsb->blocksize;
 	sb->s_blocksize_bits = rsb->blockbits;
@@ -78,27 +67,24 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1000000000;
 	
 	// private filesystem info
-	sb->s_fs_info = rsb;	// now, I wonder what happens to rsb after I brelse(bh) ^^.
+	sb->s_fs_info = rsb;
 	
-	
-	// sanity info printout
-	printk("vers: %d volname: '%s'\n", rsb->vers, rsb->volname);
+	if (silent != 1)
+		printk("Ash vers: %d volname: '%s'\n", rsb->vers, rsb->volname);
+
+	brelse(bh);
 
 	// create the root inode
-	brelse(bh);
-	
 	// read the root directory entry from the device
-	bh = __bread(sb->s_bdev, rsb->datastart >> 3, rsb->blocksize);
+	bh = __bread(sb->s_bdev, rsb->datastart << rsb->blockbits >> KERNEL_BLOCKBITS, KERNEL_BLOCKSIZE);
 	if (!bh) {
 		printk(KERN_ERR "cannot read root directory entry\n");
 		return -1;
 	}
 	
-	start = rsb->datastart & 7;
-	
 	// it's fucked up cause I can only read in chunks of 4096 bytes in the kernel, 
 	// so all offsets are wrong...
-	rfile = (struct ash_raw_file*) ((char*)bh->b_data + start);
+	rfile = (struct ash_raw_file*) (bh->b_data);
 	
 	// making the root
 	root = ash_make_inode(sb, rfile->mode);
