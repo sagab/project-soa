@@ -8,23 +8,14 @@
  * For licensing information, see the file 'LICENSE'
  */
 
+#include <linux/fs.h>
 
-static int ash_fs_link (struct dentry *, struct inode *, struct dentry *);
+int ash_readdir (struct file *filp, void *dirent, filldir_t filldir) {
+	return 0;
+}
 
 
-
-struct file_operations ash_dir_operations{
-	.dir 		=	TODO; 
-	.readdir	=	TODO;
+struct file_operations ash_dir_operations = {
+	.readdir	=	ash_readdir,
 };
 
-struct inode_operations ash_dir_inode_operations{
-	.create		= ash_fs_create,
-	.lookup		= ash_fs_lookup,
-	.link		= ash_fs_link,
-	.unlink		= ash_fs_unlink,
-	//...
-};
-
-
-	
