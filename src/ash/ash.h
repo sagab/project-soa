@@ -12,6 +12,7 @@
 #define __ASH_H__
 
 #include <linux/types.h>
+#include <linux/fs.h>
  
 #define ASH_MAGIC		0x451
 #define ASH_VERSION		10
@@ -68,16 +69,7 @@ struct ash_raw_superblock {
 #define ASHTYPE_COMP		3
 #define ASHTYPE_CRYPTCOMP	4
 #define ASHTYPE_COMPCRYPT	5
-#define ASHTYPE_HASHEDDIR	6
 
-
-/*
- * Represents an entry in a hashtable for finding information in a block
- */
-struct ash_raw_hashentry {
-	__u32	block;
-	__u16	off;
-};
 
 
 /*
@@ -94,7 +86,32 @@ struct ash_raw_file {
 	__u32	wtime;			// last written
 	__u32	ctime;			// created
 	__u32	startblock;		// reference to both BAT and actual data block where file's data is stored
-	__u16	namelength;		// how long is the filename
+	char	name[256];		// filename
 };
+
+
+// Reads a block from the drive and returns a buffer of blocksize bytes
+// or NULL in case of an error
+extern void* block_read (struct super_block *sb, uint32_t block);
+
+// Writes a block to the drive. The block's data is an array of blocksize bytes
+// returns 0 on success
+extern int block_write (struct super_block *sb, void *data, uint32_t block);
+
+// Reads what value a block has in the Used Blocks Bitmap
+// returns 0, 1 or -1 in case of error
+extern int UBB_read (struct super_block *sb, uint32_t block);
+
+// Writes the value val for a block in Used Blocks Bitmap zone
+// returns 0 on success
+extern int UBB_write (struct super_block *sb, uint32_t block, uint8_t val);
+
+// Get the number of the next block of data following block from the Block Allocation Table
+extern int BAT_read (struct super_block *sb, uint32_t block);
+
+// Write the number of the entry for the block in the BAT
+// returns 0 on success
+extern int BAT_write (struct super_block *sb, uint32_t block, uint32_t entry);
+
 
 #endif /* ash.h */

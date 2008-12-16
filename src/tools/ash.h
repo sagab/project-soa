@@ -76,15 +76,6 @@ struct ash_raw_superblock {
 
 
 /*
- * Represents an entry in a hashtable for finding information in a block
- */
-struct ash_raw_hashentry {
-	uint32_t	block;
-	uint16_t	off;
-};
-
-
-/*
  * Represents a file/directory entry on the physical USB drive
  *
  */
@@ -98,7 +89,7 @@ struct ash_raw_file {
 	uint32_t	wtime;			// last written
 	uint32_t	ctime;			// created
 	uint32_t	startblock;		// reference to both BAT and actual data block where file's data is stored
-	uint16_t	namelength;		// how long is the filename
+	char		name[256];		// filename
 };
 
 #endif /* ash.h */

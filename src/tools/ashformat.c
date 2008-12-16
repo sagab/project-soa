@@ -2,7 +2,6 @@
  * AshFS Format Utility Program
  *
  * Created by:
- * 			   Daniel Baluta  <daniel.baluta@gmail.com> 
  * 			   Gabriel Sandu  <gabrim.san@gmail.com>
  *
  * For licensing information, see the file 'LICENSE'
@@ -136,7 +135,6 @@ int format(char *device, uint16_t bsize, unsigned long long size, char *volname)
 	rentry.size = 0;
 	rentry.atime = rentry.wtime = rentry.ctime = now;
 	rentry.startblock = s.datastart + 1;
-	rentry.namelength = 0;		// root dir doesn't have a name
 	
 	// trying to open the device file
 	FILE *fd = fopen(device, "w");
