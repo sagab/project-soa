@@ -14,8 +14,10 @@
 #include <linux/fs.h>
 #include <linux/dcache.h>
 #include <linux/buffer_head.h>
+#include <linux/spinlock.h>
 #include <asm/string.h>
 #include "ash.h"
+
 
 static struct super_operations ash_super_operations = {
 	.statfs		= simple_statfs,
@@ -32,7 +34,7 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	struct buffer_head *bh;
 	struct ash_raw_superblock *rsb;
 	struct ash_raw_file *rfile;
-
+		
 	// read sector 0 -> the superblock sector
 	bh = __bread(sb->s_bdev, 0, ASH_SECTORSIZE);
 	if (!bh) {
@@ -45,7 +47,8 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	// check if it's an Ash filesystem
 	if (rsb->magic != ASH_MAGIC) {
 		printk(KERN_ERR "incorrect magic number\n");
-		goto out_test;
+		brelse(bh);
+		return -1;
 	}
 	
 	// fill in superblock fields by using the superblock read from disk
@@ -102,10 +105,341 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 	
-out_test:
-	brelse(bh);
-	return -1;
 }
+
+
+
+/*
+ * Reads a block from the drive and returns a buffer of blocksize bytes
+ * @return NULL in case of an error, or a pointer to a buffer
+ */
+void* block_read (struct super_block *sb, uint32_t block)
+{
+	uint64_t bytes, kB, kO, off;
+	int i, n;
+	char *buf;
+	struct buffer_head *bh;
+	
+	bytes = block << sb->s_blocksize_bits;		// the real offset on disk
+	kB = bytes >> KERNEL_BLOCKBITS;			// kernel block of 4096 bytes
+	kO = bytes & (KERNEL_BLOCKSIZE - 1);		// offset in the kernel block
+
+	buf = kmalloc(sb->s_blocksize, GFP_ATOMIC);	// try to get a buffer to read in
+	
+	if (!buf)
+		return NULL;
+		
+	off = 0;					// offset for copying in the buf
+	
+	// read start of buffer from kernel block kB
+	bh = __bread(sb->s_bdev, kB, KERNEL_BLOCKSIZE);
+	
+	if (!bh) {
+		kfree(buf);
+		return NULL;
+	}
+
+	// test which one is the min
+	if (sb->s_blocksize <= KERNEL_BLOCKSIZE) {
+		off = sb->s_blocksize - kO;	// how many bytes we are copying
+		memcpy(buf, bh->b_data, off);
+	} else {
+		off = KERNEL_BLOCKSIZE - kO;	// how many bytes we are copying
+		memcpy(buf, bh->b_data, off);
+	}
+	
+	brelse(bh);
+	
+	// now to copy an integer number of kernel blocks
+	n = (sb->s_blocksize - off) >> KERNEL_BLOCKBITS;
+	for (i = 0; i < n; i++) {
+		bh = __bread(sb->s_bdev, kB + i, KERNEL_BLOCKSIZE);
+		
+		if (!bh) {
+			kfree(buf);
+			return NULL;
+		}
+			
+		memcpy(buf+off, bh->b_data, KERNEL_BLOCKSIZE);
+		off += KERNEL_BLOCKSIZE;
+		
+		brelse(bh);
+	}
+	
+	// copy the last part of a kernel block
+	// check if there's really a need to read another kernel block
+	if (off < sb->s_blocksize) {
+		bh = __bread(sb->s_bdev, kB + n, KERNEL_BLOCKSIZE);
+		
+		if (!bh) {
+			kfree(buf);
+			return NULL;
+		}
+
+		memcpy(buf+off, bh->b_data, sb->s_blocksize - off);
+		brelse(bh);
+	}
+	
+	// all ok
+	return buf;
+
+}
+
+
+
+/*
+ * Writes a block to the drive. The block's data is an array of blocksize bytes
+ * @return 0 on success
+ */
+int block_write (struct super_block *sb, void *data, uint32_t block)
+{
+	uint64_t bytes, kB, kO, off;
+	int i, n;
+	struct buffer_head *bh;
+	
+	bytes = block << sb->s_blocksize_bits;		// the real offset on disk
+	kB = bytes >> KERNEL_BLOCKBITS;			// kernel block of 4096 bytes
+	kO = bytes & (KERNEL_BLOCKSIZE - 1);		// offset in the kernel block
+
+	off = 0;					// offset for copying from data buffer
+	
+	// read start of buffer from kernel block kB
+	bh = __getblk(sb->s_bdev, kB, KERNEL_BLOCKSIZE);
+	
+	if (!bh)
+		return -1;
+	
+	// test which one is the min
+	if (sb->s_blocksize <= KERNEL_BLOCKSIZE) {
+		off = sb->s_blocksize - kO;		// how many bytes we are copying
+		memcpy(bh->b_data, data, off);
+	} else {
+		off = KERNEL_BLOCKSIZE - kO;		// how many bytes we are copying
+		memcpy(bh->b_data, data, off);
+	}
+	
+	// make a request
+	mark_buffer_dirty(bh);
+	brelse(bh);
+	
+	// now to copy an integer number of kernel blocks
+	n = ((uint64_t)sb->s_blocksize - off) >> KERNEL_BLOCKBITS;
+	
+	for (i = 0; i < n; i++) {
+		bh = __getblk(sb->s_bdev, kB + i, KERNEL_BLOCKSIZE);
+		
+		if (!bh)
+			return -1;
+			
+		memcpy(bh->b_data, data + off, KERNEL_BLOCKSIZE);
+		off += KERNEL_BLOCKSIZE;
+		
+		mark_buffer_dirty(bh);
+		brelse(bh);
+	}
+
+	// copy the last part of a kernel block
+	// check if there's really a need to read another kernel block
+	if (off < sb->s_blocksize) {
+		bh = __getblk(sb->s_bdev, kB + n, KERNEL_BLOCKSIZE);
+		
+		if (!bh)
+			return -1;
+			
+		memcpy(bh->b_data, data + off, sb->s_blocksize - off);
+		
+		mark_buffer_dirty(bh);
+		brelse(bh);
+	}
+	
+	// all ok
+	return 0;
+}
+
+
+
+/*
+ * Reads what value a block has in the Used Blocks Bitmap
+ * @return 0 (unused), 1 (used) or -1 in case of error
+ */
+int UBB_read (struct super_block *sb, uint32_t block)
+{
+	struct ash_raw_superblock *rsb;
+	uint32_t lB, lO, kB, kO;
+	uint64_t off;
+	uint8_t bit, byte, rez;
+	struct buffer_head *bh;
+	uint8_t *ubb;
+	
+	// obtain a point to the ash_raw_superblock structure
+	rsb = sb->s_fs_info;
+	
+	// get the logical block in which the byte containing the bit
+	// for block parameter is stored :) and logical offset
+	lB = rsb->UBBstart + (block >> (3 + sb->s_blocksize_bits));
+	lO = (block >> 3) & (sb->s_blocksize - 1);
+	
+	// kernel block to read in order to get the byte from lB, lO
+	off = ( lB << sb->s_blocksize_bits ) + lO;
+	kB = off >> KERNEL_BLOCKBITS;
+	kO = off & (KERNEL_BLOCKSIZE - 1);
+	
+	bit = 8 - (block & 7);	// the bit that needs to be read
+	
+	// read the block from disk
+	bh = __bread(sb->s_bdev, kB, KERNEL_BLOCKSIZE);
+	
+	// error occured
+	if (!bh)
+		return -1;
+	
+	ubb = (uint8_t*) bh->b_data;
+	byte = ubb[kO];
+	
+	rez = (byte & (1 << bit) ) >> bit;
+	
+	brelse(bh);
+	
+	return rez;
+}
+
+
+
+/*
+ * Writes the value val for a block in Used Blocks Bitmap zone
+ * @return 0 on success
+ */
+int UBB_write (struct super_block *sb, uint32_t block, uint8_t val)
+{
+	struct ash_raw_superblock *rsb;
+	uint32_t lB, lO, kB, kO;
+	uint64_t off;
+	uint8_t bit, mask;
+	struct buffer_head *bh;
+	uint8_t *ubb;
+	
+	// obtain a point to the ash_raw_superblock structure
+	rsb = sb->s_fs_info;
+	
+	// get the logical block in which the byte containing the bit
+	// for block parameter is stored :) and logical offset
+	lB = rsb->UBBstart + (block >> (3 + sb->s_blocksize_bits));
+	lO = (block >> 3) & (sb->s_blocksize - 1);
+	
+	// kernel block to read in order to get the byte from lB, lO
+	off = ( lB << sb->s_blocksize_bits ) + lO;
+	kB = off >> KERNEL_BLOCKBITS;
+	kO = off & (KERNEL_BLOCKSIZE - 1);
+	
+	bit = 8 - (block & 7);	// the bit that needs to be modified
+	
+	// get the buffer_head from disk
+	bh = __getblk(sb->s_bdev, kB, KERNEL_BLOCKSIZE);
+	
+	// error occured
+	if (!bh)
+		return -1;
+	
+	ubb = (uint8_t*) bh->b_data;
+	mask = 1 << bit;
+	
+	if (val == 0)	
+		ubb[kO] = ubb[kO] & (~mask);
+	else
+		ubb[kO] = ubb[kO] | mask;
+	
+	mark_buffer_dirty(bh);
+	brelse(bh);
+	
+	return 0;
+}
+
+
+
+/*
+ * Get the number of the next block of data following block from the Block Allocation Table
+ * @return uint32_t number of block or -1 on error
+ */
+int BAT_read (struct super_block *sb, uint32_t block)
+{
+	struct ash_raw_superblock *rsb;
+	uint32_t lB, lO, kB, kO;
+	uint64_t off;
+	struct buffer_head *bh;
+	uint32_t *bat;
+	
+	// obtain a point to the ash_raw_superblock structure
+	rsb = sb->s_fs_info;
+	
+	// get the logical block which holds the entry in the BAT
+	// got the block parameter
+	lB = rsb->BATstart + (block >> (sb->s_blocksize - 2));
+	lO = (block << 2) & (sb->s_blocksize - 1);
+	
+	// kernel block to read in order to get the byte from lB, lO
+	off = ( lB << sb->s_blocksize_bits ) + lO;
+	kB = off >> KERNEL_BLOCKBITS;
+	kO = off & (KERNEL_BLOCKSIZE - 1);
+	
+	// read the block from disk
+	bh = __bread(sb->s_bdev, kB, KERNEL_BLOCKSIZE);
+	
+	// error occured
+	if (!bh)
+		return -1;
+	
+	bat = (uint32_t*)( (uint8_t*) bh->b_data + kO);
+	
+	brelse(bh);
+	
+	return bat[0];
+}
+
+
+
+/*
+ * Write the number of the entry for the block in the BAT
+ * @return 0 on success
+ */
+int BAT_write (struct super_block *sb, uint32_t block, uint32_t entry)
+{
+
+	struct ash_raw_superblock *rsb;
+	uint32_t lB, lO, kB, kO;
+	uint64_t off;
+	struct buffer_head *bh;
+	uint32_t *bat;
+	
+	// obtain a point to the ash_raw_superblock structure
+	rsb = sb->s_fs_info;
+	
+	// get the logical block which holds the entry in the BAT
+	// got the block parameter
+	lB = rsb->BATstart + (block >> (sb->s_blocksize - 2));
+	lO = (block << 2) & (sb->s_blocksize - 1);
+	
+	// kernel block to read in order to get the byte from lB, lO
+	off = ( lB << sb->s_blocksize_bits ) + lO;
+	kB = off >> KERNEL_BLOCKBITS;
+	kO = off & (KERNEL_BLOCKSIZE - 1);
+	
+	// read the block from disk
+	bh = __getblk(sb->s_bdev, kB, KERNEL_BLOCKSIZE);
+	
+	// error occured
+	if (!bh)
+		return -1;
+	
+	bat = (uint32_t*)( (uint8_t*) bh->b_data + kO);
+	bat[0] = entry;
+	
+	mark_buffer_dirty(bh);
+	brelse(bh);
+	
+	return 0;
+}
+
+
 
 static int ash_get_sb(struct file_system_type *fs,
 		int flags, const char *dev_name,

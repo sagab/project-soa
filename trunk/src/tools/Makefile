@@ -6,6 +6,7 @@ CC=gcc
 
 build:
 	$(CC) -o ashformat ashformat.c -lm
-
+	$(CC) -o fdump fdump.c
+	
 clean:
-	rm -f ashformat *.o
+	rm -f ashformat fdump *.o
