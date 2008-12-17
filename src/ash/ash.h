@@ -98,6 +98,11 @@ extern void* block_read (struct super_block *sb, uint32_t block);
 // returns 0 on success
 extern int block_write (struct super_block *sb, void *data, uint32_t block);
 
+
+// Returns the number of the first available block
+// -1 on error
+extern int block_first_free(struct super_block *sb);
+
 // Reads what value a block has in the Used Blocks Bitmap
 // returns 0, 1 or -1 in case of error
 extern int UBB_read (struct super_block *sb, uint32_t block);

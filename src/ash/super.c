@@ -259,6 +259,73 @@ int block_write (struct super_block *sb, void *data, uint32_t block)
 
 
 /*
+ * Returns the first block that is available for use
+ * @return block index, or -1 in case of error
+ */
+int block_first_free(struct super_block *sb)
+{
+	struct ash_raw_superblock *rsb;
+	uint32_t kB, kO;
+	uint64_t off, size;
+	int done, i;
+	struct buffer_head *bh;
+	uint8_t *ubb, byte;
+	
+	// obtain a point to the ash_raw_superblock structure
+	rsb = sb->s_fs_info;
+	
+	// get the kernel block and offset for UBBstart
+	off = rsb->UBBstart << sb->s_blocksize_bits;
+	kB = off >> KERNEL_BLOCKBITS;
+	kO = off & (KERNEL_BLOCKSIZE - 1);
+	
+	size = rsb->UBBblocks << sb->s_blocksize_bits;
+	off = 0;
+	done = 0;
+	byte = 0;
+	
+	// read all UBB
+	while (!done && off < size) {
+		
+		// read a new block from UBB
+		bh = __bread(sb->s_bdev, kB, sb->s_blocksize);
+		
+		if (!bh)
+			return -1;
+		
+		// get address to KERNEL_BLOCKSIZE bytes from UBB
+		ubb = (uint8_t*)bh->b_data + kO;
+		
+		for (i=0; i < KERNEL_BLOCKSIZE && !done; i++)
+			if (ubb[i] != 0xFF) {
+				done = 1;
+				off += i;
+				byte = ubb[i];
+				break;
+			}
+			
+		if (!done) {
+			off += KERNEL_BLOCKSIZE;
+			kO = 0;		// only first kernel block doesn't have data start from byte 0
+		}
+		
+		brelse(bh);
+	}
+
+	if (off >= size)
+		return 0;
+	
+	// find first 0 bit from byte
+	i = 7;
+	while (byte & (1<<i))
+		i--;
+		
+	return off * 8 + (8 - i);
+}
+
+
+
+/*
  * Reads what value a block has in the Used Blocks Bitmap
  * @return 0 (unused), 1 (used) or -1 in case of error
  */
