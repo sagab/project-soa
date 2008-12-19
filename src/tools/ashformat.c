@@ -119,6 +119,7 @@ int format(char *device, uint16_t bsize, unsigned long long size, char *volname)
 	s.state = ASH_UMOUNT;
 	s.magic = ASH_MAGIC;
 	s.vers = ASH_VERSION;
+	s.fnogen = 1;	// root will have fno = 1. the next inode we build will use fnogen+1 as value
 	
 	strcpy(s.volname, volname);
 	
@@ -135,6 +136,7 @@ int format(char *device, uint16_t bsize, unsigned long long size, char *volname)
 	rentry.size = 0;
 	rentry.atime = rentry.wtime = rentry.ctime = now;
 	rentry.startblock = s.datastart + 1;
+	rentry.fno = 1;
 	
 	// trying to open the device file
 	FILE *fd = fopen(device, "w");

@@ -59,6 +59,7 @@ struct ash_raw_superblock {
 	__u16	UBBstart;		// block where UBB starts
 	__u16	BATstart;		// block where BAT starts
 	__u16	datastart;		// block where data starts
+	__u64	fnogen;			// number of generated files. used to get a unique number for new files
 };
  
 
@@ -69,7 +70,7 @@ struct ash_raw_superblock {
 #define ASHTYPE_COMP		3
 #define ASHTYPE_CRYPTCOMP	4
 #define ASHTYPE_COMPCRYPT	5
-
+#define ASHTYPE_REMDENTRY	6
 
 
 /*
@@ -86,6 +87,7 @@ struct ash_raw_file {
 	__u32	wtime;			// last written
 	__u32	ctime;			// created
 	__u32	startblock;		// reference to both BAT and actual data block where file's data is stored
+	__u64	fno;			// file number reference. should be unique in the fs.
 	char	name[256];		// filename
 };
 
