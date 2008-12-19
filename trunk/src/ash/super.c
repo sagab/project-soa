@@ -96,6 +96,9 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 		iput(root);
 		return -ENOMEM;
 	}
+	
+	// root has no parent
+	root_dentry->d_parent = root_dentry;
 
 	// final superblock init
 	sb->s_root = root_dentry;
