@@ -191,6 +191,21 @@ void ShiftRows (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 }
 
 
+/**
+ * Multiplies a byte-poly by x
+ * will be used to compute coeficients in 4-word GF(2^8) poly multiply
+ */
+uint8_t xtime (uint8_t p) {
+	uint8_t rez = p<<1;
+	
+	// check if i need to apply modulo m(x)
+	if (p & 128) {
+		rez ^= 0x1b;	
+	}
+	
+	return rez;
+}
+
 
 /**
  * MixColumns transform
@@ -198,6 +213,15 @@ void ShiftRows (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
  * - the poly is {03}x^3 + {01}x^2 + {01}x + {02}
  */
 void MixColumns (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
+	int c;
+	
+	// take each column c and do SOME MAGIC! :D
+	for (c = 0; c < 4; c++) {
+		out[0][c] = xtime(in[0][c]) ^ xtime(in[1][c]) ^ in[1][c] ^ in[2][c] ^ in[3][c];
+		out[1][c] = in[0][c] ^ xtime(in[1][c]) ^ xtime(in[2][c]) ^ in[2][c] ^ in[3][c];
+		out[2][c] = in[0][c] ^ in[1][c] ^ xtime(in[2][c]) ^ xtime(in[3][c]) ^ in[3][c];
+		out[3][c] = xtime(in[0][c]) ^ in[0][c] ^ in[1][c] ^ in[2][c] ^ xtime(in[3][c]);
+	}
 }
 
 
@@ -274,27 +298,27 @@ int AES_crypt (void *dest, void *src, int size, void *key, int Nk) {
 	};
 	
 
-	in[0][0]=0;
-	in[0][1]=1;
-	in[0][2]=2;
-	in[0][3]=3;
-	in[1][0]=4;
-	in[1][1]=5;
-	in[1][2]=6;
-	in[1][3]=7;
-	in[2][0]=8;
-	in[2][1]=9;
-	in[2][2]=10;
-	in[2][3]=11;
-	in[3][0]=12;
-	in[3][1]=13;
-	in[3][2]=14;
-	in[3][3]=15;
-	ShiftRows(in,out,&ab);
+	in[0][0]=0xd4;
+	in[0][1]=0xe0;
+	in[0][2]=0xb8;
+	in[0][3]=0x1e;
+	in[1][0]=0xbf;
+	in[1][1]=0xb4;
+	in[1][2]=0x41;
+	in[1][3]=0x27;
+	in[2][0]=0x5d;
+	in[2][1]=0x52;
+	in[2][2]=0x11;
+	in[2][3]=0x98;
+	in[3][0]=0x30;
+	in[3][1]=0xae;
+	in[3][2]=0xf1;
+	in[3][3]=0xe5;
+	MixColumns(in,out,&ab);
 	
 	for (i=0;i<4;i++) {
 		for (j=0;j<4;j++)
-			printk("%d ", out[i][j]);
+			printk("%2x ", out[i][j]);
 		printk("\n");
 	}
 	return 0;
