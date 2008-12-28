@@ -24,3 +24,27 @@ struct inode * ash_make_inode (struct super_block *sb, int mode)
 
 	return inode;
 }
+
+int ash_mkdir (struct inode *inode, struct dentry *dentry, int mode)
+{
+	//struct ash_raw_file arf;
+	// verify if dentry exists in the inode on disk
+	
+	// create it
+	/*arf.mode = mode;
+	arf.ashtype = ;
+	arf.uid, gid
+	arf.size = 0;
+	atime, wtime, ctime,
+	startblock
+	fno
+	name
+*/
+	return 0;
+}
+
+
+struct inode_operations ash_inode_operations = {
+	.mkdir = ash_mkdir,
+	.lookup = simple_lookup,
+};

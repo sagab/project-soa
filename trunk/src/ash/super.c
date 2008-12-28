@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <asm/string.h>
 #include "ash.h"
+#include "crypt.h"
 
 
 static struct super_operations ash_super_operations = {
@@ -26,6 +27,7 @@ static struct super_operations ash_super_operations = {
 
 extern struct inode * ash_make_inode (struct super_block *, int);
 extern struct file_operations ash_dir_operations;
+extern struct inode_operations ash_inode_operations;
 
 static int ash_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -84,7 +86,7 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	}
 
-	root->i_op = &simple_dir_inode_operations;
+	root->i_op = &ash_inode_operations;
 	root->i_fop = &ash_dir_operations;
 	
 	// set private data
@@ -535,6 +537,8 @@ static struct file_system_type ash_fs_type = {
 
 static int __init init_ash_fs(void)
 {
+	AES_crypt(NULL,NULL,0,NULL, 4);
+	
 	return register_filesystem(&ash_fs_type);
 }
 

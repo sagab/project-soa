@@ -1,2 +1,2 @@
 obj-m = ash.o
-ash-objs += super.o file.o inode.o dentry.o
+ash-objs += super.o file.o inode.o dentry.o crypt.o
