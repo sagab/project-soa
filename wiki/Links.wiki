@@ -15,6 +15,9 @@ We have been extensively reading every piece of material we could find about the
  # *JFFS2* [http://sources.redhat.com/jffs2/jffs2.pdf]
  # *Memory Technology Devices* [http://www.linux-mtd.infradead.org/doc/general.html]
  # *Porting device drivers to the 2.6 kernel* [http://lwn.net/Articles/driver-porting/]
+ 
+ # *AES standard* [http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf]
+ # *AES wikipedia* [http://en.wikipedia.org/wiki/Advanced_Encryption_Standard]
 
 From the kernel sources, probably the most useful link were the filesystem ones:
  # *FAT* [http://lxr.linux.no/linux+v2.6.27.6/fs/fat/]
