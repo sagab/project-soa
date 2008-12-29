@@ -537,7 +537,46 @@ static struct file_system_type ash_fs_type = {
 
 static int __init init_ash_fs(void)
 {
-	AES_crypt(NULL,NULL,0,NULL, 4);
+	uint8_t *key = (uint8_t*) kmalloc (16, GFP_KERNEL);
+	uint8_t *src = (uint8_t*) kmalloc (16, GFP_KERNEL);
+	key[0] = 0x2b;
+	key[1] = 0x7e;
+	key[2] = 0x15;
+	key[3] = 0x16;
+	key[4] = 0x28;
+	key[5] = 0xae;
+	key[6] = 0xd2;
+	key[7] = 0xa6;
+	key[8] = 0xab;
+	key[9] = 0xf7;
+	key[10] = 0x15;
+	key[11] = 0x88;
+	key[12] = 0x09;
+	key[13] = 0xcf;
+	key[14] = 0x4f;
+	key[15] = 0x3c;
+	
+	src[0] = 0x32;
+	src[1] = 0x43;
+	src[2] = 0xf6;
+	src[3] = 0xa8;
+	src[4] = 0x88;
+	src[5] = 0x5a;
+	src[6] = 0x30;
+	src[7] = 0x8d;
+	src[8] = 0x31;
+	src[9] = 0x31;
+	src[10] = 0x98;
+	src[11] = 0xa2;
+	src[12] = 0xe0;
+	src[13] = 0x37;
+	src[14] = 0x07;
+	src[15] = 0x34;
+	
+	AES_crypt(src,src,16,key, 4);	
+	
+	kfree(key);
+	kfree(src);
 	
 	return register_filesystem(&ash_fs_type);
 }
