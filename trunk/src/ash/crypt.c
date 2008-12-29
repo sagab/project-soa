@@ -141,13 +141,21 @@ void compute_lookup (uint8_t *table) {
 }
 
 
+// a word, comprised of 4 bytes, in the order 0,1,2,3.
+struct word {
+	uint8_t a0,a1,a2,a3;
+};
+
+
 // need a structure to pack parameters that are sent to crypting function
 // which does the actual work, without having to alloc memory all the time
 struct AES_bundle {
-	int Nk;
-	int Nr;
-	uint8_t *key;
-	uint8_t *SB_table;
+	int Nk;			// number of words in the key
+	int Nr;			// number of rounds
+	int round;		// current round
+	uint8_t *key;		// the key, as array of bytes
+	uint8_t *SB_table;	// SubBytes lookup table
+	struct word *w;		// key schedule for each round
 };
 
 
@@ -226,14 +234,149 @@ void MixColumns (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 
 
 /**
+ * Function used to add the round key from AES_bundle.w keyschedule to the
+ * current state in the current round from AES_bundle.round
  */
 void AddRoundKey (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
+	int c, i;
+	
+	i = 4*ab->round;
+	
+	// for every column and row
+	for (c = 0; c < 4; c++) {
+		out[0][c] = in[0][c] ^ ab->w[i + c].a0;
+		out[1][c] = in[1][c] ^ ab->w[i + c].a1;
+		out[2][c] = in[2][c] ^ ab->w[i + c].a2;
+		out[3][c] = in[3][c] ^ ab->w[i + c].a3;
+	}
 }
 
 
+
+/**
+ * Function used by KeyExpansion to substitute bytes from a word
+ * by using the struct AES_bundle.SB_table lookup
+ */
+void SubWord (struct word *w, struct AES_bundle *ab) {
+	w->a0 = ab->SB_table[w->a0];
+	w->a1 = ab->SB_table[w->a1];
+	w->a2 = ab->SB_table[w->a2];
+	w->a3 = ab->SB_table[w->a3];
+}
+
+
+/**
+ * Function used by KeyExpansion to permute the bytes of a word
+ * [a0,a1,a2,a3] -> [a1,a2,a3,a0]
+ */
+void RotWord (struct word *w) {
+	uint8_t tmp = w->a0;
+	w->a0 = w->a1;
+	w->a1 = w->a2;
+	w->a2 = w->a3;
+	w->a3 = tmp;
+}
+
+
+
+/**
+ * Function used by KeyExpansion to provide a special word constant
+ * { x^(i-1), {00}, {00}, {00} }
+ */
+struct word Rcon (int i) {
+	struct word res;
+	int k;
+	
+	// res.a0 must be x^ (i-1)
+	res.a0 = 0x01;	// the value for x^0
+	
+	// raising x to the power i-1
+	for (k = 1; k < i; k++) {
+		res.a0 = xtime(res.a0);	
+	}
+	
+	res.a1 = 0;
+	res.a2 = 0;
+	res.a3 = 0;
+	
+	return res;
+}
+
+
+/**
+ * Expands the initial key ab.key into a key schedule
+ * which has Nb * (Nr+1) words of 4 bytes. Nb = 4 for AES
+ */
 void KeyExpansion (struct AES_bundle *ab) {
-
+	int i, j, r, q;
+	
+	// first step is to copy first Nk words from key to the schedule
+	for (i = 0, j = 0; i < ab->Nk; i++, j+=4) {
+		ab->w[i].a0 = ab->key[j];
+		ab->w[i].a1 = ab->key[j+1];
+		ab->w[i].a2 = ab->key[j+2];
+		ab->w[i].a3 = ab->key[j+3];
+	}
+	
+	r = 0;		// r = remainder(i/Nk)
+	q = 1;		// q = quotient (i/Nk)
+	
+	// expansion for the rest of words
+	for (i = ab->Nk; i < 4*(ab->Nr + 1); i++) {
+		struct word temp, w1;
+		
+		temp = ab->w[i-1];
+		if (r == 0) {
+			RotWord(&temp);
+			SubWord(&temp, ab);
+			w1 = Rcon(q);
+			
+			// XOR between temp and w1
+			temp.a0 = temp.a0 ^ w1.a0;
+			temp.a1 = temp.a1 ^ w1.a1;
+			temp.a2 = temp.a2 ^ w1.a2;
+			temp.a3 = temp.a3 ^ w1.a3;
+		}
+		else if (ab->Nk > 6 && r == 4)
+			SubWord(&temp, ab);
+		
+		w1 = ab->w[i - ab->Nk];
+		
+		ab->w[i].a0 = w1.a0 ^ temp.a0;
+		ab->w[i].a1 = w1.a1 ^ temp.a1;
+		ab->w[i].a2 = w1.a2 ^ temp.a2;
+		ab->w[i].a3 = w1.a3 ^ temp.a3;
+		
+		temp = ab->w[i];
+		
+		// implementing division and modulo Nk
+		r++;
+		if (r == ab->Nk) {
+			r = 0;
+			q++;
+		}
+	}
 }
+
+
+
+/**
+ * Debug purpose nice matrix output of a state
+ * from a particular round
+ */
+void PrintState (int round, uint8_t state[4][4]) {
+	int i,j;
+	printk("round %d -----------------\n\n", round);
+	
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++)
+			printk("%02x ", state[i][j]);
+		printk("\n");
+	}
+	
+	printk("\n\n");
+}
+
 
 /**
  * Crypts a matrix of 4x4 bytes using the AES_bundle parameters
@@ -245,6 +388,7 @@ int cypher (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 	// matrix copy
 	memcpy(state1, in, 16);
 	
+	ab->round = 0;
 	AddRoundKey(state1, state2, ab);
 
 	// matrix copy
@@ -254,18 +398,26 @@ int cypher (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 	// I will use state1 and state2 to minimize the needed number of matrix copy ops
 
 	for (r = 1; r < ab->Nr; r++) {
+		PrintState(r, state1);
+		
 		SubBytes(state1, state2, ab);
 		ShiftRows(state2, state1, ab);
 		MixColumns(state1, state2, ab);
+		
+		ab->round++;
 		AddRoundKey(state2, state1, ab);
 	}
 	
 	SubBytes(state1, state2, ab);
 	ShiftRows(state2, state1, ab);
+	
+	ab->round++;
 	AddRoundKey(state1, state2, ab);
 
 	// matrix copy
 	memcpy(out, state2, 16);
+
+	PrintState(r, out);
 
 	return 0;
 }
@@ -297,42 +449,22 @@ int AES_crypt (void *dest, void *src, int size, void *key, int Nk) {
 		default: return -1;
 	};
 	
-
-	in[0][0]=0xd4;
-	in[0][1]=0xe0;
-	in[0][2]=0xb8;
-	in[0][3]=0x1e;
-	in[1][0]=0xbf;
-	in[1][1]=0xb4;
-	in[1][2]=0x41;
-	in[1][3]=0x27;
-	in[2][0]=0x5d;
-	in[2][1]=0x52;
-	in[2][2]=0x11;
-	in[2][3]=0x98;
-	in[3][0]=0x30;
-	in[3][1]=0xae;
-	in[3][2]=0xf1;
-	in[3][3]=0xe5;
-	MixColumns(in,out,&ab);
-	
-	for (i=0;i<4;i++) {
-		for (j=0;j<4;j++)
-			printk("%2x ", out[i][j]);
-		printk("\n");
-	}
-	return 0;
 	
 	// memory alloc for the whole crypting operation
 	ab.SB_table = (uint8_t*) kmalloc (256, GFP_ATOMIC);
-	if (!ab.SB_table)
-		return -ENOMEM;
+	ab.w = (struct word*) kmalloc (4*(ab.Nr+1) * sizeof(struct word), GFP_ATOMIC);
 	
+	if (!ab.SB_table || !ab.w)
+		return -ENOMEM;
+
 	if (!dest || !src)
 		return -ENOMEM;
-		
+
 	// build the table
-	compute_lookup(ab.SB_table);
+	compute_lookup(ab.SB_table);	
+	
+	// create the key schedule for the Nr rounds
+	KeyExpansion(&ab);
 	
 	// crypt each block of 4x4 bytes
 	for (k = 0; k<size; k+=16) {
@@ -352,6 +484,7 @@ int AES_crypt (void *dest, void *src, int size, void *key, int Nk) {
 	}	
 		
 	kfree(ab.SB_table);
+	kfree(ab.w);
 	
 	return 0;
 }
