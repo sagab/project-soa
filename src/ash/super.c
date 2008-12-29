@@ -539,6 +539,8 @@ static int __init init_ash_fs(void)
 {
 	uint8_t *key = (uint8_t*) kmalloc (16, GFP_KERNEL);
 	uint8_t *src = (uint8_t*) kmalloc (16, GFP_KERNEL);
+	int i;
+	
 	key[0] = 0x00;
 	key[1] = 0x01;
 	key[2] = 0x02;
@@ -573,11 +575,24 @@ static int __init init_ash_fs(void)
 	src[14] = 0xee;
 	src[15] = 0xff;
 	
-	AES_crypt(src,src,16,key, 4);
+	printk("plain: ");
+	for (i=0; i<16; i++)
+		printk("%02x", src[i]);
 	
-	printk("\n\n----------------------DECRYPT \n\n");
+	AES_crypt(src,src,16,key, 4);
+
+	printk("\ncrypt: ");
+	for (i=0; i<16; i++)
+		printk("%02x", src[i]);
+
 	AES_decrypt(src,src,16,key,4);
 	
+	printk("\ndecry: ");
+	for (i=0; i<16; i++)
+		printk("%02x", src[i]);
+		
+	printk("\n\n");
+
 	kfree(key);
 	kfree(src);
 	

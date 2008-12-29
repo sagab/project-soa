@@ -225,8 +225,8 @@ void MixColumns (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 	
 	// take each column c and do SOME MAGIC! :D
 	// basically, xtime does * {02}, so the goal is to XOR those until we get to
-	// the right coefficients, like {03}*S={02}*S ^ {01}*S, and {01}*S = S.
-	// so {03}*S = xtime(S) ^ S. That's how I get the expressions done.
+	// the right coefficients, like {05}*S={04}*S ^ {01}*S, and {04}*S = xtime({02}*S).
+
 	
 	for (c = 0; c < 4; c++) {
 		out[0][c] = xtime(in[0][c]) ^ xtime(in[1][c]) ^ in[1][c] ^ in[2][c] ^ in[3][c];
@@ -492,37 +492,18 @@ void compute_Inv_lookup (uint8_t *table) {
 }
 
 
-/**
- * Multiplies the given number n by the constant c, in
- * the finite field GF(2).
+
+/*
+ * Applies xtime to n recursively for y times.
  */
-uint8_t MulByCon (uint8_t c, uint8_t n) {	//BUGGED
-	int i, t;
-	uint8_t rez;
+uint8_t yxtime (int y, uint8_t n) {
+	uint8_t res = n;
+	int k;
 	
-	// might be *{00} :)
-	if (c == 0)
-		return 0;
+	for (k = 0; k < y; k++)
+		res = xtime(res);
 	
-	// rez must be initialized with a value before XORing
-	// the rest.
-	
-	// if c is even, then we can init rez by n*{02}
-	if ((c & 1) == 0)
-		rez = xtime(n);
-	else
-		rez = n;
-	
-	// if c was even, (c-1)/2 will return 1 less than needed xtimes
-	// which is correct, since rez already holds first xtime(n)
-	
-	// if c was odd, rez has only an n, and the rest (c-1)/2 must be xtimes.
-	t = (c-1)>>1;
-	for (i = 0; i < t; i++) {
-		rez ^= xtime(rez);
-	}
-	
-	return rez;
+	return res;
 }
 
 
@@ -535,23 +516,30 @@ void InvMixColumns (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) 
 	int c;
 	
 	// basically, xtime does * {02}, so the goal is to XOR those until we get to
-	// the right coefficients, like {03}*S={02}*S ^ {01}*S, and {01}*S = S.
-	// so {03}*S = xtime(S) ^ S. That's how I get the expressions done.
+	// the right coefficients, like {05}*S={04}*S ^ {01}*S, and {04}*S = xtime({02}*S).
 	
 	// MixColumns was easy, because the coeff are {03}ish, but InvMixColumns uses {0e},
 	// which would become too long to write without a multiply-by-constant function.
 	for (c = 0; c < 4; c++) {
-		out[0][c] = 	MulByCon(0x0e,in[0][c]) ^ MulByCon(0x0b,in[1][c]) ^ 
-				MulByCon(0x0d,in[2][c]) ^ MulByCon(0x09,in[3][c]);
+		out[0][c] = yxtime(3,in[0][c]) ^ yxtime(2,in[0][c]) ^ xtime(in[0][c]) ^ 
+				yxtime(3,in[1][c]) ^ xtime(in[1][c]) ^ in[1][c] ^
+				yxtime(3,in[2][c]) ^ yxtime(2,in[2][c]) ^ in[2][c] ^
+				yxtime(3,in[3][c]) ^ in[3][c];
+				
+		out[1][c] = yxtime(3,in[0][c]) ^ in[0][c] ^ 
+				yxtime(3,in[1][c]) ^ yxtime(2,in[1][c]) ^ xtime(in[1][c]) ^
+				yxtime(3,in[2][c]) ^ xtime(in[2][c]) ^ in[2][c] ^
+				yxtime(3,in[3][c]) ^ yxtime(2,in[3][c]) ^ in[3][c];
 
-		out[1][c] = 	MulByCon(0x09,in[0][c]) ^ MulByCon(0x0e,in[1][c]) ^ 
-				MulByCon(0x0b,in[2][c]) ^ MulByCon(0x0d,in[3][c]);
+		out[2][c] = yxtime(3,in[0][c]) ^ yxtime(2,in[0][c]) ^ in[0][c] ^ 
+				yxtime(3,in[1][c]) ^ in[1][c] ^
+				yxtime(3,in[2][c]) ^ yxtime(2,in[2][c]) ^ xtime(in[2][c]) ^
+				yxtime(3,in[3][c]) ^ xtime(in[3][c]) ^ in[3][c];
 
-		out[2][c] = 	MulByCon(0x0d,in[0][c]) ^ MulByCon(0x09,in[1][c]) ^ 
-				MulByCon(0x0e,in[2][c]) ^ MulByCon(0x0b,in[3][c]);
-
-		out[3][c] = 	MulByCon(0x0b,in[0][c]) ^ MulByCon(0x0d,in[1][c]) ^ 
-				MulByCon(0x09,in[2][c]) ^ MulByCon(0x0e,in[3][c]);
+		out[3][c] = yxtime(3,in[0][c]) ^ xtime(in[0][c]) ^ in[0][c] ^ 
+				yxtime(3,in[1][c]) ^ yxtime(2,in[1][c]) ^ in[1][c] ^
+				yxtime(3,in[2][c]) ^ in[2][c] ^
+				yxtime(3,in[3][c]) ^ yxtime(2,in[3][c]) ^ xtime(in[3][c]);
 	}
 }
 
@@ -579,17 +567,11 @@ int decypher (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 	for (r = ab->Nr - 1; r >= 1; r--) {
 		ab->round = r;
 		
-		printk("istart ");
-		PrintVector(ab->round, state1);
-		
 		InvShiftRows(state1, state2, ab);
 		SubBytes(state2, state1, ab);		// i'm using inversed lookup table instead
 							// of InvSubBytes.
 		
 		AddRoundKey(state1, state2, ab);
-		
-		printk("ik_add ");
-		PrintVector(ab->round, state2);
 		InvMixColumns(state2, state1, ab);
 	}
 	
@@ -601,8 +583,6 @@ int decypher (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 
 	// matrix copy
 	memcpy(out, state2, 16);
-
-	PrintVector(r, out);
 
 	return 0;	
 }
@@ -719,9 +699,6 @@ int AES_decrypt (void *dest, void *src, int size, void *key, int Nk) {
 	
 	// now we can compute the table we'll be using
 	compute_Inv_lookup(ab.SB_table);
-	
-	for (k = 0; k<0x0f; k++)
-	printk("*%02x: %02x \n", k, MulByCon(k,0x23));
 	
 	// decrypt each block of 4x4 bytes
 	for (k = 0; k<size; k+=16) {
