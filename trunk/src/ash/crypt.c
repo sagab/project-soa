@@ -224,6 +224,10 @@ void MixColumns (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 	int c;
 	
 	// take each column c and do SOME MAGIC! :D
+	// basically, xtime does * {02}, so the goal is to XOR those until we get to
+	// the right coefficients, like {03}*S={02}*S ^ {01}*S, and {01}*S = S.
+	// so {03}*S = xtime(S) ^ S. That's how I get the expressions done.
+	
 	for (c = 0; c < 4; c++) {
 		out[0][c] = xtime(in[0][c]) ^ xtime(in[1][c]) ^ in[1][c] ^ in[2][c] ^ in[3][c];
 		out[1][c] = in[0][c] ^ xtime(in[1][c]) ^ xtime(in[2][c]) ^ in[2][c] ^ in[3][c];
@@ -378,6 +382,25 @@ void PrintState (int round, uint8_t state[4][4]) {
 }
 
 
+
+/**
+ * Debug purpose nice vector output of a state
+ * from a particular round
+ */
+void PrintVector (int round, uint8_t state[4][4]) {
+	int i,j;
+	printk("round %d ", round);
+	
+	for (j = 0; j < 4; j++) {
+		for (i = 0; i < 4; i++)
+			printk("%02x", state[i][j]);
+	}
+	
+	printk("\n");
+}
+
+
+
 /**
  * Crypts a matrix of 4x4 bytes using the AES_bundle parameters
  */
@@ -398,8 +421,6 @@ int cypher (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 	// I will use state1 and state2 to minimize the needed number of matrix copy ops
 
 	for (r = 1; r < ab->Nr; r++) {
-		PrintState(r, state1);
-		
 		SubBytes(state1, state2, ab);
 		ShiftRows(state2, state1, ab);
 		MixColumns(state1, state2, ab);
@@ -411,17 +432,180 @@ int cypher (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
 	SubBytes(state1, state2, ab);
 	ShiftRows(state2, state1, ab);
 	
-	ab->round++;
+	ab->round++;	
 	AddRoundKey(state1, state2, ab);
 
 	// matrix copy
 	memcpy(out, state2, 16);
 
-	PrintState(r, out);
-
 	return 0;
 }
 
+
+
+/**
+ * InvShiftRows transform
+ * - inverse of the ShiftRows transform
+ */
+void InvShiftRows (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
+	// copy first row
+	memcpy(out, in, 4);
+	
+	// 2nd row
+	memcpy(out[1]+1, in[1], 3);
+	out[1][0] = in[1][3];
+	
+	// 3rd row
+	memcpy(out[2], in[2]+2,2);
+	memcpy(out[2]+2, in[2], 2);
+	
+	// 4th row
+	memcpy(out[3], in[3]+1, 3);
+	out[3][3] = in[3][0];
+}	
+
+
+
+/**
+ * Computes the inverse of lookup table for the SubBytes transform
+ * Instead of using the InvSubBytes which needs reversing the affine
+ * transform, I'm just inversing the table of the transform, getting
+ * the inverse :D. Therefore, we don't need InvSubBytes.
+ * @table is a preallocated array with 256 elements
+ *
+ */
+void compute_Inv_lookup (uint8_t *table) {
+	uint8_t *tmp;
+	int i;
+	
+	// i will compute the original table first
+	tmp = (uint8_t*) kmalloc (256, GFP_ATOMIC);
+	
+	compute_lookup(tmp);
+	
+	// now, inverting it into a new lookup, for InvSubBytes
+	for (i = 0; i < 256; i++) {
+		table[tmp[i]] = i;
+	}
+	
+	kfree(tmp);
+}
+
+
+/**
+ * Multiplies the given number n by the constant c, in
+ * the finite field GF(2).
+ */
+uint8_t MulByCon (uint8_t c, uint8_t n) {	//BUGGED
+	int i, t;
+	uint8_t rez;
+	
+	// might be *{00} :)
+	if (c == 0)
+		return 0;
+	
+	// rez must be initialized with a value before XORing
+	// the rest.
+	
+	// if c is even, then we can init rez by n*{02}
+	if ((c & 1) == 0)
+		rez = xtime(n);
+	else
+		rez = n;
+	
+	// if c was even, (c-1)/2 will return 1 less than needed xtimes
+	// which is correct, since rez already holds first xtime(n)
+	
+	// if c was odd, rez has only an n, and the rest (c-1)/2 must be xtimes.
+	t = (c-1)>>1;
+	for (i = 0; i < t; i++) {
+		rez ^= xtime(rez);
+	}
+	
+	return rez;
+}
+
+
+/**
+ * InvMixColumns transform
+ * - multiplies each column mod x^4+1 with a fixed polynomial over GF(2^8) (yes, it's annoying)
+ * - the poly is {0b}x^3 + {0d}x^2 + {09}x + {0e}
+ */
+void InvMixColumns (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
+	int c;
+	
+	// basically, xtime does * {02}, so the goal is to XOR those until we get to
+	// the right coefficients, like {03}*S={02}*S ^ {01}*S, and {01}*S = S.
+	// so {03}*S = xtime(S) ^ S. That's how I get the expressions done.
+	
+	// MixColumns was easy, because the coeff are {03}ish, but InvMixColumns uses {0e},
+	// which would become too long to write without a multiply-by-constant function.
+	for (c = 0; c < 4; c++) {
+		out[0][c] = 	MulByCon(0x0e,in[0][c]) ^ MulByCon(0x0b,in[1][c]) ^ 
+				MulByCon(0x0d,in[2][c]) ^ MulByCon(0x09,in[3][c]);
+
+		out[1][c] = 	MulByCon(0x09,in[0][c]) ^ MulByCon(0x0e,in[1][c]) ^ 
+				MulByCon(0x0b,in[2][c]) ^ MulByCon(0x0d,in[3][c]);
+
+		out[2][c] = 	MulByCon(0x0d,in[0][c]) ^ MulByCon(0x09,in[1][c]) ^ 
+				MulByCon(0x0e,in[2][c]) ^ MulByCon(0x0b,in[3][c]);
+
+		out[3][c] = 	MulByCon(0x0b,in[0][c]) ^ MulByCon(0x0d,in[1][c]) ^ 
+				MulByCon(0x09,in[2][c]) ^ MulByCon(0x0e,in[3][c]);
+	}
+}
+
+
+
+/**
+ * Decrypts a matrix of 4x4 bytes using the AES_bundle parameters
+ */
+int decypher (uint8_t in[4][4], uint8_t out[4][4], struct AES_bundle *ab) {
+	int r;
+	uint8_t state1[4][4], state2[4][4];
+		
+	// matrix copy
+	memcpy(state1, in, 16);
+		
+	ab->round = ab->Nr;
+	AddRoundKey(state1, state2, ab);
+	
+	// matrix copy
+	memcpy(state1, state2, 16);
+	
+	// do the crypting rounds
+	// I will use state1 and state2 to minimize the needed number of matrix copy ops
+
+	for (r = ab->Nr - 1; r >= 1; r--) {
+		ab->round = r;
+		
+		printk("istart ");
+		PrintVector(ab->round, state1);
+		
+		InvShiftRows(state1, state2, ab);
+		SubBytes(state2, state1, ab);		// i'm using inversed lookup table instead
+							// of InvSubBytes.
+		
+		AddRoundKey(state1, state2, ab);
+		
+		printk("ik_add ");
+		PrintVector(ab->round, state2);
+		InvMixColumns(state2, state1, ab);
+	}
+	
+	InvShiftRows(state1, state2, ab);
+	SubBytes(state2, state1, ab);
+	
+	ab->round = 0;
+	AddRoundKey(state1, state2, ab);
+
+	// matrix copy
+	memcpy(out, state2, 16);
+
+	PrintVector(r, out);
+
+	return 0;	
+}
 
 
 /**
@@ -488,4 +672,78 @@ int AES_crypt (void *dest, void *src, int size, void *key, int Nk) {
 	
 	return 0;
 }
+
+
+
+/**
+ * Decrypts an array of bytes using a key of given length
+ * dest can be = src, but they must always match in size
+ * @dest array of bytes after crypting, assumes it's allocated
+ * @src array of bytes to crypt
+ * @size MUST BE a multiple of 16 bytes
+ * @key array of 4*Nk bytes containing the crypting key
+ * @Nk the AES key length, in 4byte words (4,6 or 8)
+ */
+int AES_decrypt (void *dest, void *src, int size, void *key, int Nk) {
+	struct AES_bundle ab;
+	int i,j,k;
+	uint8_t in[4][4], out[4][4];
+	
+	ab.Nk = Nk;
+	ab.key = (uint8_t*) key;
+	ab.Nr = 10;		// number of rounds for the algorithm
+	
+	switch(Nk) {
+		case 4: {ab.Nr = 10; break;}
+		case 6: {ab.Nr = 12; break;}
+		case 8: {ab.Nr = 14; break;}
+		default: return -1;
+	};
+	
+	
+	// memory alloc for the whole decrypting operation
+	ab.SB_table = (uint8_t*) kmalloc (256, GFP_ATOMIC);
+	ab.w = (struct word*) kmalloc (4*(ab.Nr+1) * sizeof(struct word), GFP_ATOMIC);
+	
+	if (!ab.SB_table || !ab.w)
+		return -ENOMEM;
+
+	if (!dest || !src)
+		return -ENOMEM;
+
+	// build the lookup table used in crypting, because KeyExpansion uses it!!!
+	compute_lookup(ab.SB_table);
+	
+	// create the key schedule for the Nr rounds
+	KeyExpansion(&ab);
+	
+	// now we can compute the table we'll be using
+	compute_Inv_lookup(ab.SB_table);
+	
+	for (k = 0; k<0x0f; k++)
+	printk("*%02x: %02x \n", k, MulByCon(k,0x23));
+	
+	// decrypt each block of 4x4 bytes
+	for (k = 0; k<size; k+=16) {
+		
+		// copy to input matrix
+		for (i=0; i<4; i++)
+		for (j=0; j<4; j++)
+			in[i][j] = ((uint8_t*) src) [k + i + 4*j];
+		
+		// crypt
+		decypher(in, out, &ab);
+		
+		// copy to dest
+		for (i=0; i<4; i++)
+		for (j=0; j<4; j++)
+			((uint8_t*) dest) [k + i + 4*j] = out[i][j];
+	}	
+		
+	kfree(ab.SB_table);
+	kfree(ab.w);
+	
+	return 0;
+}
+
 
