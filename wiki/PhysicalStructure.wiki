@@ -29,7 +29,7 @@ The BAT is stored as a vector with maxblocks entries and each of them is a refer
 
 = Logical Disk Blocks, Sectors, Logical Kernel Blocks =
 
-By *sector*, we understand the smallest possible unit in which data can be read from the block device. As a legacy, this value has been maintained to 512 bytes for all known device types over the years, and therefore whenever we are dealing with sector numbers, the sectorsize will be 512, in all contexts.
+By *sector*, we understand the smallest possible unit in which data can be read from the block device. As a legacy, this value has been maintained to 512 bytes for all known device types over the years, and therefore whenever we are dealing with sector numbers, the sector size will be 512, in all contexts.
 
 *Logical Kernel Blocks* are what the Linux kernel perceives as beeing the unit to read from a block device. Currently, that value is 4096 bytes and attempting to read less (say, a sector) or more from a random location on the device WILL block the kernel. This has been thoroughly tested, so whenever we are making writes or reads by using __bread, sb_bread, etc, we must specify a "sector" number which is actually the number of the kernel logical block and a size of how much to read in the buffer.
 
