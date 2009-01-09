@@ -25,9 +25,9 @@ static struct super_operations ash_super_operations = {
 	.drop_inode	= generic_delete_inode,
 };
 
-extern struct inode * ash_make_inode (struct super_block *, int);
+extern struct inode * ash_get_inode (struct super_block *, int);
 extern struct file_operations ash_dir_operations;
-extern struct inode_operations ash_inode_operations;
+extern struct inode_operations ash_dir_inode_operations;
 
 static int ash_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -80,13 +80,13 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	rfile = (struct ash_raw_file*) (bh->b_data);
 	
 	// making the root
-	root = ash_make_inode(sb, rfile->mode);
+	root = ash_get_inode(sb, rfile->mode);
 	if (! root) {
 		brelse(bh);
 		return -ENOMEM;
 	}
 
-	root->i_op = &ash_inode_operations;
+	root->i_op = &ash_dir_inode_operations;
 	root->i_fop = &ash_dir_operations;
 	
 	// set private data
@@ -112,6 +112,30 @@ static int ash_fill_super(struct super_block *sb, void *data, int silent)
 	
 }
 
+static int myfs_fill_super(struct super_block * sb, void * data, int silent)
+{
+        struct inode * root_inode;
+ 
+        sb->s_maxbytes = MAX_LFS_FILESIZE;
+        sb->s_blocksize = PAGE_CACHE_SIZE;
+        sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+        sb->s_magic = 234;
+        sb->s_op = &ash_super_operations;
+		
+        root_inode = ash_get_inode(sb, S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);        //mode = directory & access rights (755)
+        if (!root_inode)
+                goto out_no_root;
+ 
+        sb->s_root = d_alloc_root(root_inode);
+        if (!sb->s_root) 
+                goto out_no_root;
+        return 0;
+		
+out_no_root:
+        printk(KERN_ERR "Get root inode failed\n");
+        iput(root_inode);
+        return -ENOMEM;
+}
 
 
 /*
@@ -517,7 +541,7 @@ static int ash_get_sb(struct file_system_type *fs,
 		int flags, const char *dev_name,
 		void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs, flags, dev_name, data, ash_fill_super, mnt);
+	return get_sb_nodev(fs, flags, data, myfs_fill_super, mnt);
 }
 
 
@@ -531,7 +555,7 @@ static struct file_system_type ash_fs_type = {
 	.owner		= THIS_MODULE,
 	.name 		= "ash",
 	.get_sb 	= ash_get_sb,
-	.kill_sb	= ash_kill_sb,
+	.kill_sb	= kill_litter_super,
 };
 
 
@@ -609,4 +633,4 @@ module_exit(exit_ash_fs);
 	
 MODULE_DESCRIPTION("Ash File System");
 MODULE_AUTHOR("DB.GS");
-MODULE_LICENSE("MIT");
+MODULE_LICENSE("GPL");
