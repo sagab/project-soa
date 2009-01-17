@@ -237,6 +237,7 @@ int main(int argc, char **argv) {
 		}
 		
 		printf("test #%d size: %d  times %d", i+1, size, number);
+		fflush(stdout);
 		
 		// run the test
 		tr = SpeedTest(filename, size, number);
