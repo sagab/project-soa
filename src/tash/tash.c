@@ -236,13 +236,13 @@ int main(int argc, char **argv) {
 			return 1;
 		}
 		
-		printf("test #%d - size: %d  times %d\n", i, size, number);
+		printf("test #%d size: %d  times %d", i+1, size, number);
 		
 		// run the test
 		tr = SpeedTest(filename, size, number);
 
 		// write to console
-		printf("\nwrite= %.0f read= %.0f\n", tr.avg_write, tr.avg_read);
+		printf("\nwrite= %.0f read= %.0f\n\n", tr.avg_write, tr.avg_read);
 
 		// write to output file
 		fprintf(fout, "%.0f %.0f\n", tr.avg_write, tr.avg_read);
