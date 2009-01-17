@@ -171,6 +171,9 @@ struct timeresult SpeedTest (char *filename, size_t size, int times) {
 			printf("unlink error for %s\n", filename);
 			return;
 		}
+		
+		printf(".");
+		fflush(stdout);
 	}
 	
 	return tr;
@@ -233,11 +236,13 @@ int main(int argc, char **argv) {
 			return 1;
 		}
 		
+		printf("test #%d - size: %d  times %d\n", i, size, number);
+		
 		// run the test
 		tr = SpeedTest(filename, size, number);
 
 		// write to console
-		printf("write= %.0f read= %.0f\n", tr.avg_write, tr.avg_read);
+		printf("\nwrite= %.0f read= %.0f\n", tr.avg_write, tr.avg_read);
 
 		// write to output file
 		fprintf(fout, "%.0f %.0f\n", tr.avg_write, tr.avg_read);
