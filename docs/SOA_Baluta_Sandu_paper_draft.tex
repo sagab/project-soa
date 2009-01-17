@@ -42,7 +42,7 @@
 %% ** Modified files should be clearly indicated as such, including  **
 %% ** renaming them and changing author support contact information. **
 %%
-%% File list of work: IEEEtran.cls, IEEEtran_HOWTO.pdf, bare_adv.tex,
+%% File  of work: IEEEtran.cls, IEEEtran_HOWTO.pdf, bare_adv.tex,
 %%                    bare_conf.tex, bare_jrnl.tex, bare_jrnl_compsoc.tex
 %%*************************************************************************
 
@@ -529,6 +529,70 @@ between.\\
 
 Ash File System is a block device based file system and tries to take in consideration
 the particular characteristics of flash memory.
+
+\section{Virtual File System}
+Before diving into the Ash File System we must have a short look at the Virtual File System (VFS). A virtual file system
+is an abstraction layer on the top of a more concrete file system and supports a uniform view of the objects or files
+in the filesystem. Even though the meaning of the term file may appear to be clear, there are many small, often subtle 
+differences in detail owning to the underlying implementations of the individual filesystems.Not all support the same 
+functions, and some operations make no sense when applied to certain objects (e.g named pipes ). \\
+
+When working with files , the central objects differ in kernel space and userspace. For user programs , a file is 
+identified by a file descriptor. This is an integer number used as a parameter to identify the file in all file-related
+operations.The file descriptor is assigned by the kernel when a file is opened and is valid only within a process. Two 
+different processes may therefore use the same file descriptor , but it does not point to the same file in both cases.
+Shared use of files on the basis of the same descriptor number is not possible. \\
+
+The inode is key to the kernel's work with files. Each file (and each directory) has just one inode, which contains 
+metadata such as  access rights , date of last change , and so on , and also pointers to the file data.
+However, the inode does not contain one important item of information - the filename. Usually, it is assumed that the 
+name of the file is one of its major characteristics and should therefore be included in the object (inode) used to 
+manage it. 
+
+\subsection{Structure of the VFS}
+The key idea behind the VFS consists of introducing a common file model capable of representing all supported 
+filesystems. This model strictly follows the file model provided by the traditional Unix filesystem.However, each specific 
+filesystem implementation must translate its physical organization into the VFS's common file model. For instance,in the 
+common file model, each directory is regarded as a file, which contains a list of files and other directories. Several 
+non-Unix disk-based filesystems use a File Allocation Table (FAT) , which stores the position of each file in the 
+directory tree. In these filesystems , directories are not files. To stick to the VFS's common file file mode, the Linux
+implemenation of such FAT-based filesystems must be able to construct on the fly , when needed , the files corresponding
+to the directories. Such files only exist only as objects in kernel memory.\\
+
+Let's see an example that illustrate this concept by showing how the read() operation would be translated by the kernel
+into a call specific to the MS-DOS filesystem. The userspace application's call to read() makes the kernel invoke the  
+corresponding sys\_read function , like every other system call. The file is represented , in kernel , by a file data
+structure which contains a filed called f\_op that has pointers to functions specific to MS-DOS files, including a function
+that reads a file. sys\_read() find the pointer to this function and invokes it. Thus , the application's read() is turned
+into the rather indirect call: file.f\_op.read(..). \\
+
+The common filesystem model consists of the following object types:
+\begin{itemize}
+\item
+superblock object, stores information concerning a mounted filesystem. For disk-based filesystems, 
+this object usually corresponds to a filesystem control block stored on disk.
+\item
+inode object, stores general information about a specific file. For disk-based filesystems, this object usually corresponds to a file control block stored on disk. Each inode object is associated with 
+an inode number, which uniquely identifies the file within the filesystem
+\item
+file object, stores information about the interaction between an open file and a process. This information 
+exists only in kernel memory during the period when a process has the file open
+\item 
+dentry object, stores information about the linking of a directory entry (that is, a particular name of the file) with the corresponding file. Each disk-based 
+filesystem stores this information in its own particular way on disk.
+\end{itemize}
+Besides providing a common interface to all filesystem implementations, the VFS has another important role 
+related to system performance. The most recently used dentry objects are contained in a disk cache named the 
+dentry cache , which speeds up the translation from a file pathname to the inode of the last pathname component.
+\subsection{VFS Data Structures}
+Now let's take a look at a detalied description of filesystem's objects:
+\subsubsection{Superblock}
+	
+\subsubsection{Inode}
+\subsubsection{File}
+\subsubsection{Dentry}
+
+
 \section{Ash File System}
 
 \subsection{Storage Format}
@@ -547,7 +611,7 @@ Add text for cryptography
 \subsection{Compression}
 Add text for compression
 
-\section{Future Development}
+\section{Future Work}
 
 Subsection text here.
 
