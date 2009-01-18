@@ -689,7 +689,35 @@ given filesystem. The {\em dentry\_operations} structure is defined in {\em linu
 \section{Ash File System}
 
 \subsection{Storage Format}
-Add text for Storage Format
+The USB flash stick drive is split up into {\bf sectors} with the size of 512 bytes and the physical available
+capacity is given as a fixed integer number of such units. Linux {\em /sys/block/sdb/size} file usually contains 
+this number of available sectors for the newly inserted device.\\
+
+A {\bf block} of data refers to an area with the length of
+several sectors, which is constant throughout the code. We make a distinction between:
+\begin{itemize}
+\item
+{\bf kernel blocks}, which are 4096 bytes in size (8 sectors)
+\item
+{\bf device blocks}, which can be contain any number of sectors. Device blocks get sized when the device is formatted, and
+they never change the size until the next format operation. Usual sizes for device blocks are 512 bytes, 2048, 4096 and 8192.
+\end{itemize}
+
+The space on the physical drive is split up into a number of device blocks, like in the next figure:
+\begin{table}
+\centering
+\begin{tabular}{|c||c|c|c|c|c|}
+\hline
+Super Block\\
+\hline
+test\\
+\hline
+\end{tabular}
+\caption{Physical Disk Layout}
+\label{table_phys}
+\end{table}
+
+
 
 \subsection{Mounting}
 Add text for Mounting 
