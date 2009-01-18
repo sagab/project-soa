@@ -665,26 +665,6 @@ specifies whether the object is dirty or not. \\
 The {\em dentry\_operations}  structure specifies the methods that virtual file system invokes on directory entries on a 
 given filesystem. The {\em dentry\_operations} structure is defined in {\em linux/dcache.h} 
 
-\begin{figure}[!t]
-\centering
-\includegraphics[width=3.5in]{writetest.jpg}
-\caption{Write Speed Test}
-\label{fig_wspeed}
-\end{figure}
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=3.5in]{readtest.jpg}
-\caption{Read Speed Test}
-\label{fig_rspeed}
-\end{figure}
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=3.5in]{features.jpg}
-\caption{Crypting and Compression Speed Test}
-\label{fig_fspeed}
-\end{figure}
 
 \section{Ash File System}
 
@@ -720,10 +700,11 @@ test\\
 
 
 \subsection{Mounting}
-Add text for Mounting 
+At mount time {\em ash\_fill\_super} is called to fill the superblock.The superblock is read in memory
+from the sector 0 of the flash and some consistency checks are performed (e.g magic number , which actually identifyes
+the AshFS).After that the root inode is read from the disk and a directory entry is allocated for it.
 
-\subsection{Operations}
-Add text for operations
+
 
 \subsection{Compression}
 To reduce flash space usage compression can be used at the cost of speed.We use {\em zlib } to achieve compression.
@@ -759,7 +740,41 @@ ciphertext. Selecting other modes , such as empressing a sequential counter over
 {\em Rijndael} was designed on {\em big-endian} systems so , {\em little-endian} systems , as ours, return 
 correct test vector result only through considerable byte-swapping, with efficiency reduced as a result.
 
+\subsection{Performance tests}
+For our comparison tests we use 4 other file systems: {\em vfat } , {\em ext2}, {\em ext3}, {\em minix}.We test write speed, 
+read speed , compression speed and encryption speed. \\
+
+xxxx \\
+
+xxxx \\
+
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=3.5in]{writetest.jpg}
+\caption{Write Speed Test}
+\label{fig_wspeed}
+\end{figure}
+
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=3.5in]{readtest.jpg}
+\caption{Read Speed Test}
+\label{fig_rspeed}
+\end{figure}
+
+
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=3.5in]{features.jpg}
+\caption{Crypting and Compression Speed Test}
+\label{fig_fspeed}
+\end{figure}
+
 \section{Future Work}
+
 
 
 \subsection{Combine compression with encryption}
