@@ -757,6 +757,25 @@ to userspace.Of course, the user space can implement transactions itself , using
 functionality required by POSIX but implementing a transaction-based system on top of AshFS would 
 be far less efficient than using the internal functions of the file system.
 
+\section{Conclusions}
+Our tests have revealed that Linux VFS offers a framework that supports costly operations such as
+crypting and compression to be implemented as an intermediate layer in a filesystem without
+affecting performance to a very large scale.\\
+
+Across different file system implementations, the speed test for the Read operation yielded uniform results.
+The difference between implementations is more important for the Write operation, where timings differ to a greater
+extent. Writing timings grow in a liniar way in respect to the file size, because flash drives have constant lookup
+latency and zero spin time.\\ 
+
+Using an official library for the crypting algorithm instead of a custom tailored implementation will
+improve performance considerably. Symmetric crypting algorithms are also the fastest algorithms available for the
+needed level of security, which can be increased by selecting a proper length for the used key, between 128, 192 and 256
+bits variants. The compression algorithms can be chosen from a larger number of available implementations but using more
+complex algorithms than zlib will add higher latencies to the Write operation.\\
+
+Overall, the AshFS project demonstrates how compression and crypting can be combined in order to achieve higher
+functionality in the operating system. It is also a proof of concept for how a new file system can be integrated with
+the existing VFS functionality.
 
 %\subsubsection{Subsubsection Heading Here}
 %Subsubsection text here.
