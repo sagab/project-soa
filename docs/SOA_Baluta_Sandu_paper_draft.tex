@@ -440,20 +440,20 @@ crypting and error correction techniques.\\
 \subsection{Flash}
 
 
-Flash memory is non-volatile computer memory that can be electrically erased and reprogrammed.
+Flash memory is non-volatile computer memory that can be electrically erased and reprogramed.
 During last years it become a common storage medium in embedded devices, because it 
 provides solid state storage with high reliability, at a relatively low cost.\\
 
-Flash is a specific type of EEPROM ({\em Electrically Erasable Programmable Read-Only Memory})
-that is erased and programmed in large blocks; in early flash the entire chip had to be
-erased at once.It is available in two major types - the traditional {\em NOR} flash which 
-is directly accessible, and the newer, cheaper {\em NAND} flash which is addressable only 
+Flash is a specific type of EEPROM (Electrically Erasable Programmable Read-Only Memory)
+that is erased and programmed in large blocks;in early flash the entire chip had to be
+erased at once.It is available in two major types - the traditional NOR flash which 
+is directly accessible, and the newer, cheaper NAND flash which is addressable only 
 through a single 8-bit bus used for both data and addresses, with separate control lines.
 This types of flash share their most important characteristics - each bit in a clean 
 flash chip will be set to a logical one , and can be set to zero by a write operation. \\
 
-Flash chips are arranged into blocks which are typically {\em 128KB} on NOR flash and {\em 8KB} on 
-NAND flash. Resetting bits from zero to one cannot be done individually, but only by 
+Flash chips are arranged into blocks which are typically 128KB on NOR flash and 8KB on 
+NAND flash.Resetting bits from zero to one cannot be done individually, but only by 
 reseting or erasing a complete block.The lifetime of a flash chip is measured in such erase
 cycles, with the typical lifetime being 100,000 erases per block.To ensure that no erase 
 block reaches this limit before the rest of the chip, most users of flash chips attempt
@@ -465,9 +465,12 @@ NOR chips.They are further divided into "pages" which are typically 512 bytes in
 each of which has an extra 16 bytes of "out of band" storage space, intended to be used
 for metadata or error correction.NAND flash is written by loading the required data into an 
 internal buffer one byte at a time , then issuing a write command. While NOR flash allows
-bits to be cleared individually until there are none left to be cleared, NAND flash 
+bits to be cleared individually until thare are none left to be cleared, NAND flash 
 allows only ten such write cycles to each page before leakage causes contents to become 
 undefined until the next erase of the block in which the page resides.
+
+
+
 
 %\section{Introduction}
 % no \IEEEPARstart
@@ -490,16 +493,16 @@ using standard file systems on that emulated device.\\
 
 The simplest method of achieving this is to use a simple 1:1 mapping from the emulated
 block device to the flash chip, and to simulate the smaller sector size for write requests
-by reading the whole erase block, modifying the appropriate part of the buffer, erasing and rewriting
-the entire block. This approach provides no wear levelling, and is extremely unsafe 
+by reading the whole erase block, modifying the appropirate part of the buffer, erasing and rewriting
+the entire block.This approach provides no wear levelling, and is extremely unsafe 
 because of the potential power loss between the erase subsequent rewrite of the data.
 However, it is acceptable for use during development of a file system which is intended
-for read-only operation in production modules.The {\em mtdblock} Linux driver provides this 
+for read-only operation in production modles.The mtdblock Linux driver provides this 
 functionality, slightly optimised to prevent excessive erase cycles by gathering writes
 to a single erase block and only performing the erase/modify/writeback procedure when a 
 write to a different erase block is requested. \\
 
-To emulate a block device in a fashion suitable for use with a writable file system, 
+To emulate a block devicde in a fashion suitable for use with a writable file system, 
 a more sophisticated approach is required. \\
 
 To provide wear levelling and reliable operation, sectors of the emulated block device,
@@ -507,7 +510,7 @@ are stored in varying locations on the physical medium, and a "Translation Layer
 to keep track of current location of each sector in the emulated block device.This 
 translation layers is effectively a form of journalling file system. \\
 
-The most commmon such translation layer is a component of PCMCIA specification, the "Flash
+The mos commmon such translation layer is a component of PCMCIA specification, the "Flash
 Translation Layer" (FTL). More recently, a variant designed for use with NAND flash chips has been
 in widespread use in the popular DiskOnChip devices produced by M-Systems. \\
 
@@ -515,8 +518,8 @@ Unfortunately, both FTL and the newer NFTL are encumbered by patents. M-Systems 
 a license for FTL to be used on all PCMCIA devices, and allow NFTL to be used only on     
 DiskOnChip devices. \\
 
-Linux supports both of these translation layers, but their use is deprecated and intended for 
-backwards compatibility only. Not only are there patent issues, but the practice of 
+Linux supports both of these translation layers, but thier use is deprecated and intended for 
+backwards compatibility only.Not only are there patent isues, but the practice of 
 using a form of journalling file system to emulate a block device, on which a "standard"
 journalling file system is then used, is unnecessarily inefficient. \\
 
@@ -776,22 +779,12 @@ ciphertext. Selecting other modes , such as empressing a sequential counter over
 {\em Rijndael} was designed on {\em big-endian} systems so , {\em little-endian} systems , as ours, return 
 correct test vector result only through considerable byte-swapping, with efficiency reduced as a result.
 
-\subsection{Performance tests}
-For our comparison tests we use 4 other file systems: {\em vfat } , {\em ext2}, {\em ext3}, {\em minix}.We test write speed, 
-read speed , compression speed and encryption speed. \\
-
-xxxx \\
-
-xxxx \\
-
-
 \begin{figure}[!t]
 \centering
 \includegraphics[width=3.5in]{writetest.jpg}
 \caption{Write Speed Test}
 \label{fig_wspeed}
 \end{figure}
-
 
 \begin{figure}[!t]
 \centering
@@ -800,14 +793,35 @@ xxxx \\
 \label{fig_rspeed}
 \end{figure}
 
-
-
 \begin{figure}[!t]
 \centering
 \includegraphics[width=3.5in]{features.jpg}
 \caption{Crypting and Compression Speed Test}
 \label{fig_fspeed}
 \end{figure}
+
+
+\subsection{Performance tests}
+For our comparison tests we use 4 other file systems: {\em vfat } , {\em ext2}, {\em ext3}, {\em minix}. We test write speed, 
+read speed , compression speed and encryption speed. \\
+
+The tests have been conducted on VMware Workstation 6.5.0 build 118166, running a Debian 2.6.24.19 generic kernel version on a
+Windows Vista Business 32 bit, CPU Core 2 Duo T9300 2.5 GHz and 4 GB RAM, having 1 GB mapped by the virtual machine. The drive used
+for the file system was a lowcost HP made 1GB pen drive. The reason for choosing to run VMware for tests is because the tests
+cannot model any sort of traffic the user might have for a flash drive, therefore we wished to insert as many latencies as possible
+and get the worst case scenario.\\
+
+The tests are conducted for exponentially increasing file sizes of test files, from 1 kB to 100 MB, in powers of 10. The reason
+for stopping at 100 MB and not going further to test 1GB is that the biggest files a normal user stores on such drives are mainly
+DivX encoded movies, which are always trimmed down to files of 700 MB in size, that can be fitted on a CD.\\
+
+Each test suite will create a file of the given size and attempt 100 cycles of writing it, reading all the file content from disk
+and erasing it. During each of the cycles, we measure the speed of the write operation, the read operation and at the end we
+obtain the average time in microseconds.\\
+
+Due to the fact that the results increase exponentially along with the file size, the charts used to present them are done in 
+logarithmic scale for the time, using the base 10 logarithm.
+
 
 \section{Future Work}
 
