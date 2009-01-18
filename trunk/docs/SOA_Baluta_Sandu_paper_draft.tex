@@ -739,12 +739,11 @@ SB & UBB & BAT & $block_{datastart}$ & \ldots & $block_{maxblocks-1}$\\
 
 
 \subsection{Mounting}
-At mount time {\em ash\_fill\_super} is called to fill the superblock.The superblock is read in memory
+At mount time {\em ash\_fill\_super} is called to fill the superblock. The superblock is read in memory
 from the sector 0 of the flash and some consistency checks are performed (e.g magic number , which actually identifyes
 the AshFS).After that the root inode is read from the disk and a directory entry is allocated for it.
 
-
-
+																						
 \subsection{Compression}
 To reduce flash space usage compression can be used at the cost of speed.We use {\em zlib } to achieve compression.
 Typically data is compressed using the zlib header as this provides error detection. When data is written
@@ -754,11 +753,11 @@ decompression software to know where compressed data ends.\\
 Currently zlib only supports one algorithm called DEFLATE which is a variation of Lempel-Ziv 1977. This algorithm 
 provides good compression on a wide variety of data with minimal use of system resources.This is also the algorithm
 almost invariably used nowadays in {\em zip} file format.It is unlikely that the zlib format will ever be extended
-to use any other algorithms, thoud the header makes allowance for this possibility. \\
+to use any other algorithms, altough the header makes allowance for this possibility. \\
 
 We use the default strategy of compression altough the library offers strategies tailored to the specific type
-of data that are being compressed.For example , if the data contains long lenghts of repetead bytes then 
-the RLE( run-length enconding) strategy may give better results.There is no limit to the length of data that
+of data that are being compressed. For example , if the data contains long lenghts of repetead bytes then 
+the RLE( run-length enconding) strategy may give better results. There is no limit to the length of data that
 can be compressed or decompressed but we will always use for compression blocks of 4K.
 
 
@@ -767,7 +766,7 @@ can be compressed or decompressed but we will always use for compression blocks 
 There are situations when we want to protect important data written on flash drive. We implemented Rijndael's cryptography 
 algorithm ( AES-128, AES-192, AES-256).The algorithm operates on plaintext blocks of 16 bytes.Encryption of
 shorter blocks is possible only by {\em padding} the source bytes, usually with {\em null} bytes.This can 
-be accomplished bia several methods, the simplest of which assumes that the final byte of the cipher identifies
+be accomplished via several methods, the simplest of which assumes that the final byte of the cipher identifies
 the number of {\em null} bytes of padding added.\\
 
 Careful choice must be made in selecting the {\em mode of operation} ot the cipher.The simplest mode encrypts
