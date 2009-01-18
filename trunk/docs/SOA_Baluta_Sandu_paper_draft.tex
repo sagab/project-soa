@@ -559,7 +559,7 @@ directory tree. In these filesystems , directories are not files. To stick to th
 implemenation of such FAT-based filesystems must be able to construct on the fly , when needed , the files corresponding
 to the directories. Such files only exist only as objects in kernel memory.\\
 
-Let's see an example that illustrate this concept by showing how the read() operation would be translated by the kernel
+Let's see an example that illustrates this concept by showing how the read() operation would be translated by the kernel
 into a call specific to the MS-DOS filesystem. The userspace application's call to read() makes the kernel invoke the  
 corresponding sys\_read function , like every other system call. The file is represented , in kernel , by a file data
 structure which contains a filed called f\_op that has pointers to functions specific to MS-DOS files, including a function
@@ -569,16 +569,16 @@ into the rather indirect call: file.f\_op.read(..). \\
 The common filesystem model consists of the following object types:
 \begin{itemize}
 \item
-superblock object, stores information concerning a mounted filesystem. For disk-based filesystems, 
+{\bf superblock object}, stores information concerning a mounted filesystem. For disk-based filesystems, 
 this object usually corresponds to a filesystem control block stored on disk.
 \item
-inode object, stores general information about a specific file. For disk-based filesystems, this object usually corresponds to a file control block stored on disk. Each inode object is associated with 
+{\bf inode object}, stores general information about a specific file. For disk-based filesystems, this object usually corresponds to a file control block stored on disk. Each inode object is associated with 
 an inode number, which uniquely identifies the file within the filesystem
 \item
-file object, stores information about the interaction between an open file and a process. This information 
+{\bf file object}, stores information about the interaction between an open file and a process. This information 
 exists only in kernel memory during the period when a process has the file open
 \item 
-dentry object, stores information about the linking of a directory entry (that is, a particular name of the file) with the corresponding file. Each disk-based 
+{\bf dentry object}, stores information about the linking of a directory entry (that is, a particular name of the file) with the corresponding file. Each disk-based 
 filesystem stores this information in its own particular way on disk.
 \end{itemize}
 Besides providing a common interface to all filesystem implementations, the VFS has another important role 
@@ -586,11 +586,84 @@ related to system performance. The most recently used dentry objects are contain
 dentry cache , which speeds up the translation from a file pathname to the inode of the last pathname component.
 \subsection{VFS Data Structures}
 Now let's take a look at a detalied description of filesystem's objects:
-\subsubsection{Superblock}
-	
-\subsubsection{Inode}
-\subsubsection{File}
-\subsubsection{Dentry}
+\subsubsection {The superblock} 
+The superblock object is implemented by each filesystem, and is used to store information describing the 
+specific filesystem. This object usually corresponds to the filesystem superblock ar the filesystem control 
+block, which is stored in a special sector on disk. The superblock is read in memory at filesystem
+mount time. \\
+
+The superblock object is represented by {\em struct super\_block } and defined in {\em linux/fs.h}.The code for 
+creating , managind and destroying superblock objects can be found in {\em fs/super.c}. A superblock
+object is created with the {\em alloc\_super() } function. When mounted, a filesystem invokes this function,
+reads its superblock off the disk, and fills in its superblock object. \\
+
+The most important data member in the superblock object is {\em s\_op }, which is the superblock operations table. The superblock operations table
+is represented by {\em struct super\_operations } and is defined in {\em fs.h} and it contains pointers
+to functions operating on a superblock object.When a filesystem needs to perform an operation on its superblock,
+it follows the pointers form its superblock object to the desired method.For example if a filesystem wanted to 
+write to its superblock , it would invoke 
+\begin{math}\indent\indent\indent\indent\indent\indent sb{\rightarrow}s\_op{\rightarrow}write\_super(sb) \\
+\end{math}
+where {\em sb} is a pointer to the filesystem's superblock. Following that pointer into {\em s\_op} yields the
+superblock operations table and ultimately the desired {\em write\_super}. It is beyond the scope of this paper
+to discuss all superblock operations but its worth pointing that a specific filesystem can set one or more superblock 
+operations to {\em NULL} in which case the VFS either calls a generic function or does nothing depending on the operation.
+
+\subsubsection{The inode}
+
+The inode object represents all the information needed by the kernel to manipulate a file or a directory.If a filesystem
+does not have inodes, the filesystem must obtain the information from wherever it is stored ( e.g inode is embedded into the files).
+The inode object is represented by {\em struct inode} and defined in {\em linux\_fs.h} and it is constructed
+in memory only when the files are accessed. Some of the entries in {\em struct inode} are related to 
+these special files. For example, {\em i\_pipe} filed points to a named pipe data structure.If the inode does not 
+refer to a named pipe , this files is set to {\em NULL}.\\ 
+
+As with the superblock operations , the {\em inode\_operations}
+member is very important.It describes the filesystem's implemented functions that the VFS invoke on an inode and their
+definitions can be found in {\em linux/fs.h } file. \\
+
+\subsubsection{The file}
+The file object is used to represent a file opened by a process. When we think of the VFS from the 
+perspective of user-space, the file object is what readily comes to mind. Processes deal directly with 
+files, not superblocks, inodes, or dentries. It is not surprising that the information in the file object 
+is the most familiar (data such as access mode and current offset) or that the file operations are 
+familiar system calls such as {\em read() } and {\em write() }. \\
+
+The file object is the in-memory representation of an open file. The object (but not the physical file)
+is created in response to the open() system call and destroyed in response to the close() system call. 
+All these file-related calls are actually methods defined in the file operations table. Because multiple 
+processes can open and manipulate a file at the same time, there can be multiple file objects in existence
+for the same file. This is why when managing file pointer every process has its own view on the read/write
+position. The file object merely represents a process's view of an open file. 
+The object points back to the dentry (which in turn points back to the inode) that actually represents the
+open file. The inode and dentry objects, of course, are unique.\\
+
+The file object is represented by {\em struct file} and it is defined in {\em linux/fs.h}.The file object does not
+actually correspond to any on-disk data.Therefore, there is no flag in the object to represent whether the 
+object is dirty and needs to be written back to disk. The file object points to its associated dentry object using
+{\em f\_dentry} pinter. The dentry in turn points to the associated inode, which reflects wether the file is dirty.\\
+As with all the other VFS objects , the file operations table is very important. The operations associated 
+with {\em struct file} are the familiar system calls that form the basis of the Unix system calls.The file object
+methods are specified in {\em file\_operations} and defined in {\em linux/fs.h}. \\
+
+\subsubsection{The dentry}
+The Virtual File System treats directories as files. An inode object represents both these components. 
+Despite this useful unification, the VFS often needs to perform directory-specific operations, such as path 
+name lookup. Path name lookup involves translating each component of a path, ensuring it is valid, and following 
+it to the next component.To facilitate this, the VFS employs the concept of a directory entry (dentry). 
+A dentry is a specific component in a path. Dentry objects are all components in a path, including files. 
+Resolving a path and walking its components is a nontrivial exercise, time-consuming and rife with string 
+comparisons. The dentry object makes the whole process easier.
+Dentries might also include mount points. The VFS constructs dentry objects on the fly, as needed, 
+when performing directory operations.\\
+
+Dentry objects are represented by {\em struct dentry} and defined in {\em linux/dcache.h} and it does not 
+correspind to any sort of on-disk data structure. The VFS creates the dentry from the string representation of 
+a path name.Because the dentry object is not physically stored on the disk , nof flag in {\em struct dentry}
+specifies whether the object is dirty or not. \\
+
+The {\em dentry\_operations}  structure specifies the methods that virtual file system invokes on directory entries on a 
+given filesystem. The {\em dentry\_operations} structure is defined in {\em linux/dcache.h} 
 
 
 \section{Ash File System}
