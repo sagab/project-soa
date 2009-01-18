@@ -741,9 +741,12 @@ SB & UBB & BAT & $block_{datastart}$ & \ldots & $block_{maxblocks-1}$\\
 \subsection{Mounting}
 At mount time {\em ash\_fill\_super} is called to fill the superblock. The superblock is read in memory
 from the sector 0 of the flash and some consistency checks are performed (e.g magic number , which actually identifyes
-the AshFS).After that the root inode is read from the disk and a directory entry is allocated for it.
+the AshFS). After that the root inode is read from the disk and a directory entry is allocated for it. At mount time,
+if the root directory on the local hard drive contains the /root/ashkey.hex file, the content will be read into memory
+and used as a crypting key for further operations. If the file is not found but crypting is enabled in the file system,
+a null key shall be used.
 
-																						
+
 \subsection{Compression}
 To reduce flash space usage compression can be used at the cost of speed.We use {\em zlib } to achieve compression.
 Typically data is compressed using the zlib header as this provides error detection. When data is written
