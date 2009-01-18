@@ -725,12 +725,39 @@ Add text for Mounting
 \subsection{Operations}
 Add text for operations
 
-\subsection{Cryptography}
-
-Add text for cryptography
-
 \subsection{Compression}
-Add text for compression
+To reduce flash space usage compression can be used at the cost of speed.We use {\em zlib } to achieve compression.
+Typically data is compressed using the zlib header as this provides error detection. When data is written
+without a header the result is raw DEFLATE data with no error detection and it is up to the caller of 
+decompression software to know where compressed data ends.\\
+
+Currently zlib only supports one algorithm called DEFLATE which is a variation of Lempel-Ziv 1977. This algorithm 
+provides good compression on a wide variety of data with minimal use of system resources.This is also the algorithm
+almost invariably used nowadays in {\em zip} file format.It is unlikely that the zlib format will ever be extended
+to use any other algorithms, thoud the header makes allowance for this possibility. \\
+
+We use the default strategy of compression altough the library offers strategies tailored to the specific type
+of data that are being compressed.For example , if the data contains long lenghts of repetead bytes then 
+the RLE( run-length enconding) strategy may give better results.There is no limit to the length of data that
+can be compressed or decompressed but we will always use for compression blocks of 4K.
+
+
+
+\subsection{Cryptography}
+There are situations when we want to protect important data written on flash drive. We implemented Rijndael's cryptography 
+algorithm ( AES-128, AES-192, AES-256).The algorithm operates on plaintext blocks of 16 bytes.Encryption of
+shorter blocks is possible only by {\em padding} the source bytes, usually with {\em null} bytes.This can 
+be accomplished bia several methods, the simplest of which assumes that the final byte of the cipher identifies
+the number of {\em null} bytes of padding added.\\
+
+Careful choice must be made in selecting the {\em mode of operation} ot the cipher.The simplest mode encrypts
+and decrypts each 128-bit block separately.This mode , is called {\em electronic code book (ECB) }, blocks
+that are identical will be encrypted identically.This will make some of the plaintext structure visible in the 
+ciphertext. Selecting other modes , such as empressing a sequential counter over the block prior to encryption
+(CTR mode) and removing it after decryption avoids this problem. \\
+
+{\em Rijndael} was designed on {\em big-endian} systems so , {\em little-endian} systems , as ours, return 
+correct test vector result only through considerable byte-swapping, with efficiency reduced as a result.
 
 \section{Future Work}
 
@@ -935,7 +962,15 @@ the existing VFS functionality.
 % set second argument of \begin to the number of references
 % (used to reserve space for the reference number labels box)
 \begin{thebibliography}{1}
-
+\bibitem{IEEhowto:lka}
+Wolfgang Mauer, \emph{Proffesional Linux Kernel Architecture},
+Wiley Publishing Inc.
+\bibitem{IEEhowto:ulk}
+Daniel Bovet , \emph{Understanding the Linux Kernel},
+O'Reilley Publishing Inc.
+\bibitem{IEEhowto:eld}
+Sreekrishnan Venkateswaran, \emph{Essential Linux Device Drivers},
+Prentice Hall Publishing
 \bibitem{IEEEhowto:dwood}
 David Woodhouse, \emph{JFFS: The Journaling Flash File System},
 Ottawa Linux Symposium,2001
