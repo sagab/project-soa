@@ -130,12 +130,12 @@
 % *** GRAPHICS RELATED PACKAGES ***
 %
 \ifCLASSINFOpdf
-  % \usepackage[pdftex]{graphicx}
+\usepackage[pdftex]{graphicx}
   % declare the path(s) where your graphic files are
   % \graphicspath{{../pdf/}{../jpeg/}}
   % and their extensions so you won't have to specify these with
   % every instance of \includegraphics
-  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\DeclareGraphicsExtensions{.pdf,.jpeg,.png}
 \else
   % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
   % will default to the driver specified in the system graphics.cfg if no
@@ -278,7 +278,7 @@
 % IEEEtran.cls handing of captions. Version 1.3 (2005/06/28) and later 
 % (recommended due to many improvements over 1.2) of subfig.sty supports
 % the caption=false option directly:
-%\usepackage[caption=false,font=footnotesize]{subfig}
+\usepackage[caption=false,font=footnotesize]{subfig}
 %
 % The latest version and documentation can be obtained at:
 % http://www.ctan.org/tex-archive/macros/latex/contrib/subfig/
@@ -665,6 +665,26 @@ specifies whether the object is dirty or not. \\
 The {\em dentry\_operations}  structure specifies the methods that virtual file system invokes on directory entries on a 
 given filesystem. The {\em dentry\_operations} structure is defined in {\em linux/dcache.h} 
 
+\begin{figure}[!t]
+\centering
+\includegraphics[width=3.5in]{writetest.jpg}
+\caption{Write Speed Test}
+\label{fig_wspeed}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=3.5in]{readtest.jpg}
+\caption{Read Speed Test}
+\label{fig_rspeed}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=3.5in]{features.jpg}
+\caption{Crypting and Compression Speed Test}
+\label{fig_fspeed}
+\end{figure}
 
 \section{Ash File System}
 
@@ -687,7 +707,6 @@ Add text for compression
 \section{Future Work}
 
 Subsection text here.
-
 
 %\subsubsection{Subsubsection Heading Here}
 %Subsubsection text here.
