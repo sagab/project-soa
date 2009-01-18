@@ -683,14 +683,53 @@ several sectors, which is constant throughout the code. We make a distinction be
 they never change the size until the next format operation. Usual sizes for device blocks are 512 bytes, 2048, 4096 and 8192.
 \end{itemize}
 
-The space on the physical drive is split up into a number of device blocks, like in the next figure:
+The space on the physical drive is split up into a number of device blocks, like in the table \ref{table_phys}:
+\begin{itemize}
+\item
+{\bf SB}, the Super Block, contains all the information needed by the VFS to access the rest of the blocks on the device. The
+Super Block always resides in block 0 and is padded with 0 to the next block boundary.\\
+\item
+{\bf UBB}, the Used Blocks Bitmap, contains a bit for each block on the disk.
+The bit will be 0 if the block is unused, and 1 if it contains useful information. After formatting the drive, the bits
+for the SB block, UBB and BAT blocks will all be equal to 1, because they will contain file system metadata. The bitmap is padded with
+0 up to the next block boundary.\\
+\item
+{\bf BAT}, the Block Allocation Table, contains a 32 bit entry for each block on the device, pointing to the next block in the sequence,
+if they have data for the same file. Therefore the device can have up to $2^{32}$ blocks, because we use 32 bits entries to address them.\\
+\item
+{\bf data blocks} are the rest of the device blocks, used to store any information. The Super Block contains a field called datastart which
+points to the first block after the BAT.
+\end{itemize}
+
+When the device gets formatted with AshFS, we utilise formulas to compute maxblocks, the number of blocks occupied by UBB, BAT and datastart
+and we store this information in the fields of the Super Block, allowing the kernel to find out how the files are organised on the disk
+later on, at mount time.\\
+
+For each file, AshFS stores two types of information:
+\begin{itemize}
+\item
+the {\bf directory entry}, which is a structure containing file metadata, such as name, access time, permissions and file size.\\
+\item
+the {\bf file data}, stored as a sequence of linked blocks of data, each block pointing to the next one by using the entries in the
+BAT. Last block of the file's data will be 0 padded to the end and have 0 in the UBB bitmap, indicating that we have reached the end
+of the file.\\
+\end{itemize}
+
+The file's directory entry is stored in a separate block than the file's data, which allows a directory to have the data organised
+as an array of directory entries for each file in the directory. The root directory starts with the first block of data and contains
+the directory entries for all the files and subdirs in the root of the drive. Recursively, adding a new file will insert a new directory
+entry in the last block of the directory we place the file in and put the actual file data in the first block we find available on the
+disk by checking the Used Blocks Bitmap. In a similar way, deleting a file will only erase the directory information metadata and mark its
+blocks as unused.\\
+
+At this moment, AshFS does not provide support for special files such as pipes
+or devices, due to the fact that it will be used for removable drives, as opposed to file systems for the hard drives.\\
+
 \begin{table}
-\centering
-\begin{tabular}{|c||c|c|c|c|c|}
+
+\begin{tabular}{|c|c|c|c|c|c|c|}
 \hline
-Super Block\\
-\hline
-test\\
+SB & UBB & BAT & $block_{datastart}$ & \ldots & $block_{maxblocks-1}$\\
 \hline
 \end{tabular}
 \caption{Physical Disk Layout}
