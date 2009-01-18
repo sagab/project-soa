@@ -740,7 +740,7 @@ SB & UBB & BAT & $block_{datastart}$ & \ldots & $block_{maxblocks-1}$\\
 
 \subsection{Mounting}
 At mount time {\em ash\_fill\_super} is called to fill the superblock. The superblock is read in memory
-from the sector 0 of the flash and some consistency checks are performed (e.g magic number , which actually identifyes
+from the sector 0 of the flash and some consistency checks are performed (magic number, which actually identifyes
 the AshFS). After that the root inode is read from the disk and a directory entry is allocated for it. At mount time,
 if the root directory on the local hard drive contains the /root/ashkey.hex file, the content will be read into memory
 and used as a crypting key for further operations. If the file is not found but crypting is enabled in the file system,
@@ -831,7 +831,7 @@ logarithmic scale for the time, using the base 10 logarithm.
 
 \subsection{Combine compression with encryption}
 In the current version both compression and encryption are supported but separate.At any time you can have 
-enabled either compression or encryption but not both in the same time.We must analyse the possibility of 
+enabled either compression or encryption but not both in the same time. We must analyse the possibility of 
 integrating compression with encryption and see the possible benefits. At a first glance there is one question arising - which of them should be 
 done first. 
 \subsection{eXecute In Place}
@@ -848,7 +848,7 @@ flexible in its use of the available RAM, discarding file buffers during the per
 Furthermore , because write operations to flash chips are slower , compressing the  data it is faster in most 
 cases.\\
 
-The main problem with XIP is the interaction with the memory management software.Firstly, for all known memory 
+The main problem with XIP is the interaction with the memory management software. Firstly, for all known memory 
 management units, each page of data must be page-aligned on the flash in order for it to be mapped into 
 processes address space, which makes such a file system to waste.Secondly , while giving write or erase 
 commands to a flash chip, it may return status words on all read cycles, therefore all currently valid mappings
@@ -864,7 +864,7 @@ a back up storage. This , of course , will decrease the storage capacity but it 
 case of forced unplugging or system crashes.
 
 \subsection{Use linux kernel CryptoAPI}
-In the current version we have written our on encryption functions.But the linux kernel provides	 
+In the current version we have written our own encryption functions. But the linux kernel provides	 
 an extensible way of using cryptography by the means of {\em CryptoAPI}. The {\em Scatterlist Crypto API}
 takes page vectors (scatterlist) as arguments, and works directly on pages. In some cases, this will allow for 
 pages to be encrypted in-place with no copying. \\
@@ -875,7 +875,7 @@ provide an abstraction to the underlying algorithms.
 
 \subsection{Transaction Support}
 For storing database information in AshFS file system, it may be desirable to expose transactions 
-to userspace.Of course, the user space can implement transactions itself , using only the file system 
+to userspace. Of course, the user space can implement transactions itself , using only the file system 
 functionality required by POSIX but implementing a transaction-based system on top of AshFS would 
 be far less efficient than using the internal functions of the file system.
 
